@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Dashboard from './components/Dashboard';
+import Dashboard from '../components/Dashboard';
 
 export default function Home() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);

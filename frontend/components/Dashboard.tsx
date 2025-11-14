@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Plus, Upload, Grid3x3, Gamepad2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -19,14 +19,33 @@ const Dashboard = () => {
   const [showUploadPopup, setShowUploadPopup] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  const [flashcardSets, setFlashcardSets] = useState<FlashcardSet[]>([
-    { id: 1, title: 'Data Structures', cards: 24, lastStudied: '2 hours ago', color: 'from-purple-400 to-pink-400' },
-    { id: 2, title: 'Algorithms & Complexity', cards: 18, lastStudied: '1 day ago', color: 'from-pink-400 to-purple-400' },
-    { id: 3, title: 'Web Development', cards: 32, lastStudied: '3 days ago', color: 'from-purple-500 to-pink-500' },
-    { id: 4, title: 'Machine Learning Basics', cards: 28, lastStudied: '5 days ago', color: 'from-pink-500 to-purple-500' },
-    { id: 5, title: 'Database Systems', cards: 20, lastStudied: '1 week ago', color: 'from-purple-400 to-pink-300' },
-  ]);
+  const [flashcardSets, setFlashcardSets] = useState<FlashcardSet[]>([]);
+  
+  useEffect(() => {
+    const loadFlashcardSets = async () => {
+      try {
+        const response = await fetch('http://localhost:8000/flashcard-sets');
+        const result = await response.json();
+        
+        if (result.status === 'success') {
+          const sets = result.sets.map((set: any) => ({
+            id: set.id,
+            title: set.title,
+            cards: set.card_count,
+            lastStudied: new Date(set.created_at).toLocaleDateString(),
+            color: 'from-blue-400 to-purple-400'
+          }));
+          setFlashcardSets(sets);
+        }
+      } catch (error) {
+        setFlashcardSets([]);
+      }
+    };
+    
+    loadFlashcardSets();
+  }, []);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -49,19 +68,43 @@ const Dashboard = () => {
     }
   };
 
-  const createFlashcards = () => {
-    if (uploadedFile) {
-      const newSet: FlashcardSet = {
-        id: flashcardSets.length + 1,
-        title: uploadedFile.name.replace('.pdf', ''),
-        cards: Math.floor(Math.random() * 20) + 10,
-        lastStudied: 'Just created',
-        color: 'from-purple-500 to-pink-500'
-      };
+  const createFlashcards = async () => {
+    if (!uploadedFile) return;
+    
+    setIsProcessing(true);
+    
+    try {
+      const formData = new FormData();
+      formData.append('file', uploadedFile);
       
-      setFlashcardSets(prev => [newSet, ...prev]);
-      setShowUploadPopup(false);
-      setUploadedFile(null);
+      const response = await fetch('http://localhost:8000/process-pdf', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      const result = await response.json();
+      
+      if (result.status === 'success') {
+        const newSet: FlashcardSet = {
+          id: result.set_id || Date.now(),
+          title: result.title,
+          cards: result.count,
+          lastStudied: 'Just created',
+          color: 'from-green-400 to-blue-400'
+        };
+        
+        setFlashcardSets(prev => [newSet, ...prev]);
+        setShowUploadPopup(false);
+        setUploadedFile(null);
+        
+        alert(`Success! Created ${result.count} flashcards from ${result.title}`);
+      } else {
+        alert('Error processing PDF: ' + result.message);
+      }
+    } catch (error) {
+      alert('Error uploading PDF: ' + error);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -104,12 +147,15 @@ const Dashboard = () => {
             <span className="font-semibold">Create New Set</span>
           </button>
 
+
+
           <button 
             onClick={() => setShowUploadPopup(true)}
             className="w-full mb-6 px-4 py-3 border-2 border-dashed border-purple-300 text-purple-600 rounded-lg hover:border-purple-400 hover:bg-purple-50 transition-all duration-200 flex items-center justify-center space-x-2"
+            disabled={isProcessing}
           >
             <Upload size={20} />
-            <span className="font-semibold">Upload PDF</span>
+            <span className="font-semibold">{isProcessing ? 'Processing...' : 'Upload PDF'}</span>
           </button>
 
           <div className="mb-4">
@@ -210,27 +256,40 @@ const Dashboard = () => {
               onDragOver={handleDrag}
               onDrop={handleDrop}
             >
-              {uploadedFile ? (
-                <div>
-                  <Upload size={48} className="mx-auto mb-4 text-green-600" />
-                  <p className="text-green-600 font-semibold">{uploadedFile.name}</p>
-                  <p className="text-sm text-gray-500 mt-2">PDF uploaded successfully!</p>
-                </div>
-              ) : (
-                <div>
-                  <Upload size={48} className="mx-auto mb-4 text-purple-400" />
-                  <p className="text-gray-600 mb-2">Drag and drop your PDF here</p>
-                  <p className="text-sm text-gray-400">or click to browse files</p>
-                </div>
-              )}
+              <input
+                type="file"
+                accept=".pdf"
+                onChange={(e) => {
+                  if (e.target.files && e.target.files[0]) {
+                    setUploadedFile(e.target.files[0]);
+                  }
+                }}
+                className="hidden"
+                id="pdf-upload"
+              />
+              <label htmlFor="pdf-upload" className="cursor-pointer">
+                {uploadedFile ? (
+                  <div>
+                    <Upload size={48} className="mx-auto mb-4 text-green-600" />
+                    <p className="text-green-600 font-semibold">{uploadedFile.name}</p>
+                    <p className="text-sm text-gray-500 mt-2">PDF uploaded successfully!</p>
+                  </div>
+                ) : (
+                  <div>
+                    <Upload size={48} className="mx-auto mb-4 text-purple-400" />
+                    <p className="text-gray-600 mb-2">Drag and drop your PDF here</p>
+                    <p className="text-sm text-gray-400">or click to browse files</p>
+                  </div>
+                )}
+              </label>
             </div>
 
             <button 
               onClick={createFlashcards}
-              disabled={!uploadedFile}
+              disabled={!uploadedFile || isProcessing}
               className="w-full mt-6 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Create Flashcards
+              {isProcessing ? 'Processing...' : 'Create Flashcards'}
             </button>
 
             <button 
