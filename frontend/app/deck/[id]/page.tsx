@@ -1,20 +1,15 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Edit, Gamepad2, Grid3x3, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 
 interface Flashcard {
   id: number;
   question: string;
   answer: string;
-}
-
-interface SetStats {
-  reviewed: number;
-  mastered: number;
-  needsReview: number;
-  accuracy: number;
+  set_id: number;
+  order_index: number;
 }
 
 export default function DeckPage({ params }: { params: Promise<{ id: string }> }) {
@@ -22,25 +17,37 @@ export default function DeckPage({ params }: { params: Promise<{ id: string }> }
   const resolvedParams = React.use(params);
   const [currentCard, setCurrentCard] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
+  const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
+  const [deckTitle, setDeckTitle] = useState('Loading...');
+  const [loading, setLoading] = useState(true);
 
-  // Mock data
-  const mockFlashcards: Flashcard[] = [
-    { id: 1, question: 'What is a Binary Search Tree?', answer: 'A binary tree where left child < parent < right child' },
-    { id: 2, question: 'What is Big O notation?', answer: 'Mathematical notation describing algorithm complexity' },
-    { id: 3, question: 'What is a Hash Table?', answer: 'Data structure using hash function to map keys to values' },
-  ];
+  useEffect(() => {
+    const fetchFlashcards = async () => {
+      try {
+        const response = await fetch(`http://localhost:8000/flashcards/${resolvedParams.id}`);
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+          setFlashcards(data.flashcards);
+          
+          // Get set title
+          const setsResponse = await fetch('http://localhost:8000/flashcard-sets');
+          const setsData = await setsResponse.json();
+          const currentSet = setsData.sets.find((set: any) => set.id === parseInt(resolvedParams.id));
+          setDeckTitle(currentSet?.title || 'Flashcard Set');
+        }
+      } catch (error) {
+        console.error('Error fetching flashcards:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const mockStats: SetStats = {
-    reviewed: 18,
-    mastered: 12,
-    needsReview: 6,
-    accuracy: 85
-  };
-
-  const deckTitle = 'Data Structures';
+    fetchFlashcards();
+  }, [resolvedParams.id]);
 
   const handleSwipe = (direction: 'left' | 'right') => {
-    setCurrentCard((prev) => (prev + 1) % mockFlashcards.length);
+    setCurrentCard((prev) => (prev + 1) % flashcards.length);
     setShowAnswer(false);
   };
 
@@ -87,46 +94,50 @@ export default function DeckPage({ params }: { params: Promise<{ id: string }> }
           </button>
         </div>
 
-        <div className="grid grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 gap-4 mb-8">
           <div className="bg-white p-4 rounded-lg shadow-sm border border-purple-100">
-            <div className="text-2xl font-bold text-purple-600">{mockStats.reviewed}</div>
-            <div className="text-sm text-gray-500">Reviewed</div>
+            <div className="text-2xl font-bold text-purple-600">{flashcards.length}</div>
+            <div className="text-sm text-gray-500">Total Cards</div>
           </div>
           <div className="bg-white p-4 rounded-lg shadow-sm border border-purple-100">
-            <div className="text-2xl font-bold text-green-600">{mockStats.mastered}</div>
-            <div className="text-sm text-gray-500">Mastered</div>
-          </div>
-          <div className="bg-white p-4 rounded-lg shadow-sm border border-purple-100">
-            <div className="text-2xl font-bold text-orange-600">{mockStats.needsReview}</div>
-            <div className="text-sm text-gray-500">Need Review</div>
-          </div>
-          <div className="bg-white p-4 rounded-lg shadow-sm border border-purple-100">
-            <div className="text-2xl font-bold text-blue-600">{mockStats.accuracy}%</div>
-            <div className="text-sm text-gray-500">Accuracy</div>
+            <div className="text-2xl font-bold text-blue-600">{currentCard + 1}</div>
+            <div className="text-sm text-gray-500">Current Card</div>
           </div>
         </div>
 
         <div className="bg-white rounded-xl shadow-lg p-8 min-h-96">
-          <div className="text-center mb-6">
-            <span className="text-sm text-gray-500">Card {currentCard + 1} of {mockFlashcards.length}</span>
-          </div>
-          
-          <div 
-            className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg p-8 min-h-64 flex items-center justify-center cursor-pointer transition-all duration-300 hover:shadow-md"
-            onClick={() => setShowAnswer(!showAnswer)}
-          >
-            <div className="text-center">
-              <h3 className="text-xl font-semibold text-gray-800 mb-4">
-                {showAnswer ? 'Answer:' : 'Question:'}
-              </h3>
-              <p className="text-lg text-gray-700">
-                {showAnswer ? mockFlashcards[currentCard]?.answer : mockFlashcards[currentCard]?.question}
-              </p>
-              {!showAnswer && (
-                <p className="text-sm text-gray-500 mt-4">Click to reveal answer</p>
-              )}
+          {loading ? (
+            <div className="text-center py-12">
+              <div className="text-lg text-gray-600">Loading flashcards...</div>
             </div>
-          </div>
+          ) : flashcards.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="text-lg text-gray-600">No flashcards found</div>
+            </div>
+          ) : (
+            <>
+              <div className="text-center mb-6">
+                <span className="text-sm text-gray-500">Card {currentCard + 1} of {flashcards.length}</span>
+              </div>
+              
+              <div 
+                className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg p-8 min-h-64 flex items-center justify-center cursor-pointer transition-all duration-300 hover:shadow-md"
+                onClick={() => setShowAnswer(!showAnswer)}
+              >
+                <div className="text-center">
+                  <h3 className="text-xl font-semibold text-gray-800 mb-4">
+                    {showAnswer ? 'Answer:' : 'Question:'}
+                  </h3>
+                  <p className="text-lg text-gray-700">
+                    {showAnswer ? flashcards[currentCard]?.answer : flashcards[currentCard]?.question}
+                  </p>
+                  {!showAnswer && (
+                    <p className="text-sm text-gray-500 mt-4">Click to reveal answer</p>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
 
           {showAnswer && (
             <div className="flex justify-center space-x-4 mt-6">
