@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Dashboard from '../components/Dashboard';
+import { supabase } from '@/lib/supabaseClient';
+import Dashboard from '@/components/Dashboard';
 
 export default function Home() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -10,13 +11,17 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-    const auth = localStorage.getItem('isAuthenticated');
-    if (auth === 'true') {
-      setIsAuthenticated(true);
-    } else {
-      router.push('/auth');
-    }
-    setLoading(false);
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setIsAuthenticated(true);
+      } else {
+        router.push('/auth');
+      }
+      setLoading(false);
+    };
+    
+    checkAuth();
   }, [router]);
 
   if (loading) {

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Edit, Gamepad2, Grid3x3, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabaseClient';
 
 interface Flashcard {
   id: number;
@@ -24,19 +25,32 @@ export default function DeckPage({ params }: { params: Promise<{ id: string }> }
   useEffect(() => {
     const fetchFlashcards = async () => {
       try {
-        const response = await fetch(`http://localhost:8000/flashcards/${resolvedParams.id}`);
-        const data = await response.json();
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
         
-        if (data.status === 'success') {
-          setFlashcards(data.flashcards);
-          
-          // Get set title
-          const setsResponse = await fetch('http://localhost:8000/flashcard-sets');
-          const setsData = await setsResponse.json();
-          const currentSet = setsData.sets.find((set: any) => set.id === parseInt(resolvedParams.id));
-          setDeckTitle(currentSet?.title || 'Flashcard Set');
-        }
+        // Get flashcards
+        const { data: flashcardsData, error: flashcardsError } = await supabase
+          .from('flashcards')
+          .select('*')
+          .eq('set_id', resolvedParams.id)
+          .order('order_index');
+        
+        if (flashcardsError) throw flashcardsError;
+        
+        // Get set title
+        const { data: setData, error: setError } = await supabase
+          .from('flashcard_sets')
+          .select('title')
+          .eq('id', resolvedParams.id)
+          .eq('user_id', session.user.id)
+          .single();
+        
+        if (setError) throw setError;
+        
+        setFlashcards(flashcardsData || []);
+        setDeckTitle(setData?.title || 'Flashcard Set');
       } catch (error) {
+        // Handle error silently
       } finally {
         setLoading(false);
       }

@@ -1,6 +1,3 @@
-# Hackathon Project
-
-Full-stack application with Next.js frontend, FastAPI backend, Supabase database, and Gemini AI integration.
 
 ## Tech Stack
 
