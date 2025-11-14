@@ -16,10 +16,10 @@ Transform your PDFs into interactive learning experiences with AI-powered flashc
 - Point-based scoring system
 - Solo practice mode
 
-### 🎮 Connect 4 Multiplayer
+### 🎮 Connect 4 Multiplayer (Coming Soon)
 - Real-time multiplayer battles
 - Answer questions to earn token placements
-- AI-powered answer scoring with accuracy scores and relevant grading of answers
+- AI-powered answer scoring
 
 ## 🛠 Tech Stack
 
