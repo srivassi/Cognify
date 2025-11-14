@@ -37,7 +37,6 @@ export default function DeckPage({ params }: { params: Promise<{ id: string }> }
           setDeckTitle(currentSet?.title || 'Flashcard Set');
         }
       } catch (error) {
-        console.error('Error fetching flashcards:', error);
       } finally {
         setLoading(false);
       }

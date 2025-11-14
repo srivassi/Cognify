@@ -40,10 +40,7 @@ const Dashboard = () => {
           setFlashcardSets(sets);
         }
       } catch (error) {
-        console.error('Failed to load flashcard sets:', error);
-        setFlashcardSets([
-          { id: 1, title: 'Data Structures', cards: 24, lastStudied: '2 hours ago', color: 'from-purple-400 to-pink-400' },
-        ]);
+        setFlashcardSets([]);
       }
     };
     
@@ -67,41 +64,25 @@ const Dashboard = () => {
     
     const files = e.dataTransfer.files;
     if (files && files[0] && files[0].type === 'application/pdf') {
-      console.log('📁 File dropped:', files[0].name);
       setUploadedFile(files[0]);
     }
   };
 
   const createFlashcards = async () => {
-    if (!uploadedFile) {
-      console.log('❌ No file selected');
-      return;
-    }
+    if (!uploadedFile) return;
     
-    console.log('🚀 Starting PDF processing:', uploadedFile.name);
     setIsProcessing(true);
     
     try {
       const formData = new FormData();
       formData.append('file', uploadedFile);
-      console.log('📦 Sending PDF to backend...');
-      
-      // First test with simple upload endpoint
-      const testResponse = await fetch('http://localhost:8000/test-upload', {
-        method: 'POST',
-        body: formData,
-      });
-      
-      console.log('🧪 Test upload response:', await testResponse.json());
       
       const response = await fetch('http://localhost:8000/process-pdf', {
         method: 'POST',
         body: formData,
       });
       
-      console.log('📞 Response status:', response.status);
       const result = await response.json();
-      console.log('📝 Backend response:', result);
       
       if (result.status === 'success') {
         const newSet: FlashcardSet = {
@@ -112,22 +93,18 @@ const Dashboard = () => {
           color: 'from-green-400 to-blue-400'
         };
         
-        console.log('🎯 Adding new flashcard set:', newSet);
         setFlashcardSets(prev => [newSet, ...prev]);
         setShowUploadPopup(false);
         setUploadedFile(null);
         
         alert(`Success! Created ${result.count} flashcards from ${result.title}`);
       } else {
-        console.error('❌ Backend error:', result.message);
         alert('Error processing PDF: ' + result.message);
       }
     } catch (error) {
-      console.error('💥 Frontend error:', error);
       alert('Error uploading PDF: ' + error);
     } finally {
       setIsProcessing(false);
-      console.log('✅ Processing complete');
     }
   };
 
@@ -170,29 +147,10 @@ const Dashboard = () => {
             <span className="font-semibold">Create New Set</span>
           </button>
 
-          <button 
-            onClick={async () => {
-              console.log('🧪 Testing backend connection...');
-              try {
-                const response = await fetch('http://localhost:8000/');
-                const result = await response.json();
-                console.log('🔗 Backend test result:', result);
-                alert('Backend connected: ' + JSON.stringify(result));
-              } catch (error) {
-                console.error('❌ Backend connection failed:', error);
-                alert('Backend connection failed: ' + error);
-              }
-            }}
-            className="w-full mb-3 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm"
-          >
-            Test Backend
-          </button>
+
 
           <button 
-            onClick={() => {
-              console.log('🔘 Upload PDF button clicked');
-              setShowUploadPopup(true);
-            }}
+            onClick={() => setShowUploadPopup(true)}
             className="w-full mb-6 px-4 py-3 border-2 border-dashed border-purple-300 text-purple-600 rounded-lg hover:border-purple-400 hover:bg-purple-50 transition-all duration-200 flex items-center justify-center space-x-2"
             disabled={isProcessing}
           >
@@ -246,10 +204,7 @@ const Dashboard = () => {
                 {filteredSets.map(set => (
                   <div
                     key={set.id}
-                    onClick={() => {
-                      console.log('💆 Clicked on flashcard set:', set.id, set.title);
-                      router.push(`/deck/${set.id}`);
-                    }}
+                    onClick={() => router.push(`/deck/${set.id}`)}
                     className="bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden cursor-pointer transform hover:-translate-y-1"
                   >
                     <div className={`h-32 bg-gradient-to-br ${set.color} p-6 flex items-center justify-center`}>
@@ -306,7 +261,6 @@ const Dashboard = () => {
                 accept=".pdf"
                 onChange={(e) => {
                   if (e.target.files && e.target.files[0]) {
-                    console.log('📁 File selected:', e.target.files[0].name);
                     setUploadedFile(e.target.files[0]);
                   }
                 }}
@@ -331,10 +285,7 @@ const Dashboard = () => {
             </div>
 
             <button 
-              onClick={() => {
-                console.log('🔘 Generate Flashcards button clicked');
-                createFlashcards();
-              }}
+              onClick={createFlashcards}
               disabled={!uploadedFile || isProcessing}
               className="w-full mt-6 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
             >
