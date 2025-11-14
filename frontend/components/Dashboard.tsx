@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Upload, Grid3x3, Gamepad2 } from 'lucide-react';
+import { Search, Plus, Upload, Grid3x3, Gamepad2, LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabaseClient';
 
 interface FlashcardSet {
   id: number;
@@ -26,19 +27,26 @@ const Dashboard = () => {
   useEffect(() => {
     const loadFlashcardSets = async () => {
       try {
-        const response = await fetch('http://localhost:8000/flashcard-sets');
-        const result = await response.json();
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
         
-        if (result.status === 'success') {
-          const sets = result.sets.map((set: any) => ({
-            id: set.id,
-            title: set.title,
-            cards: set.card_count,
-            lastStudied: new Date(set.created_at).toLocaleDateString(),
-            color: 'from-blue-400 to-purple-400'
-          }));
-          setFlashcardSets(sets);
-        }
+        const { data: sets, error } = await supabase
+          .from('flashcard_sets')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .order('created_at', { ascending: false });
+        
+        if (error) throw error;
+        
+        const mappedSets = sets.map((set: any) => ({
+          id: set.id,
+          title: set.title,
+          cards: set.card_count,
+          lastStudied: new Date(set.created_at).toLocaleDateString(),
+          color: 'from-blue-400 to-purple-400'
+        }));
+        
+        setFlashcardSets(mappedSets);
       } catch (error) {
         setFlashcardSets([]);
       }
@@ -74,6 +82,10 @@ const Dashboard = () => {
     setIsProcessing(true);
     
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      
+      // Send PDF to backend for processing
       const formData = new FormData();
       formData.append('file', uploadedFile);
       
@@ -85,10 +97,38 @@ const Dashboard = () => {
       const result = await response.json();
       
       if (result.status === 'success') {
+        // Save to Supabase using frontend client
+        const { data: setData, error: setError } = await supabase
+          .from('flashcard_sets')
+          .insert({
+            title: result.title,
+            card_count: result.flashcards.length,
+            user_id: session.user.id
+          })
+          .select()
+          .single();
+        
+        if (setError) throw setError;
+        
+        // Save flashcards
+        const flashcardData = result.flashcards.map((card: any, index: number) => ({
+          set_id: setData.id,
+          question: card.question,
+          answer: card.answer,
+          order_index: index
+        }));
+        
+        const { error: cardsError } = await supabase
+          .from('flashcards')
+          .insert(flashcardData);
+        
+        if (cardsError) throw cardsError;
+        
+        // Update UI
         const newSet: FlashcardSet = {
-          id: result.set_id || Date.now(),
+          id: setData.id,
           title: result.title,
-          cards: result.count,
+          cards: result.flashcards.length,
           lastStudied: 'Just created',
           color: 'from-green-400 to-blue-400'
         };
@@ -97,12 +137,12 @@ const Dashboard = () => {
         setShowUploadPopup(false);
         setUploadedFile(null);
         
-        alert(`Success! Created ${result.count} flashcards from ${result.title}`);
+        alert(`Success! Created ${result.flashcards.length} flashcards from ${result.title}`);
       } else {
         alert('Error processing PDF: ' + result.message);
       }
     } catch (error) {
-      alert('Error uploading PDF: ' + error);
+      alert('Error creating flashcards');
     } finally {
       setIsProcessing(false);
     }
@@ -135,6 +175,16 @@ const Dashboard = () => {
               <Gamepad2 size={18} />
               <span className="font-medium">Jeopardy</span>
             </button>
+            <button 
+              onClick={async () => {
+                await supabase.auth.signOut();
+                router.push('/auth');
+              }}
+              className="px-5 py-2.5 bg-gradient-to-r from-gray-500 to-gray-600 text-white rounded-lg hover:from-gray-600 hover:to-gray-700 transition-all duration-200 flex items-center space-x-2 shadow-md hover:shadow-lg"
+            >
+              <LogOut size={18} />
+              <span className="font-medium">Logout</span>
+            </button>
           </div>
         </div>
       </header>
@@ -166,12 +216,8 @@ const Dashboard = () => {
             {flashcardSets.map(set => (
               <button
                 key={set.id}
-                onClick={() => setSelectedSet(set.id)}
-                className={`w-full text-left px-4 py-3 rounded-lg transition-all duration-200 ${
-                  selectedSet === set.id
-                    ? 'bg-gradient-to-r from-purple-100 to-pink-100 border-2 border-purple-300'
-                    : 'hover:bg-purple-50 border-2 border-transparent'
-                }`}
+                onClick={() => router.push(`/deck/${set.id}`)}
+                className="w-full text-left px-4 py-3 rounded-lg transition-all duration-200 hover:bg-purple-50 border-2 border-transparent hover:border-purple-300"
               >
                 <div className="font-medium text-gray-800 mb-1">{set.title}</div>
                 <div className="text-sm text-gray-500">{set.cards} cards</div>
