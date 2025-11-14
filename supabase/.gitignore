@@ -1,0 +1,16 @@
+# Node
+node_modules
+.env.local
+.next
+dist
+.vscode
+
+# Python
+backend/venv
+__pycache__
+*.pyc
+.env
+
+# Misc
+.DS_Store
+*.sqlite3
