@@ -10,13 +10,13 @@ response should be given via json file
 # flashcard deck to jeopardy : (input is json file)
 use the provided flashcard deck to create a series of jeopardy-style questions grouped into
 difficulties : easy, medium, and hard, with correct answers awarding the user (respectively) 
-(easy_points), (medium_points), and (hard_points) points. questions should be answerable
+100, 200, and 500 points. questions should be answerable
 from deck content ONLY, not relying on outside material. be unambiguous and avoid 
 overly decorative language. also avoid trick phrasing unless explicitly requested. structure
 of questions should be in class jeopardy style, eg, Q: "this is the first president of america", A:
 "who is george washington?". response should be given via json file
 
-# monkeytype accuracy score : (input is json file of flashcards and langchain?)
+# monkeytype accuracy score : (input is json file of flashcards and langchain)
 please compute the percentage accuracy of user during the provided typing session using
 the following rubric : (correct answers / total answers) x 100. do not penalise user for common
 typing errors, eg, computer vs cmputer, or case errors. response should be in json file
