@@ -11,6 +11,7 @@ interface Flashcard {
   answer: string;
   set_id: number;
   order_index: number;
+  status?: 'mastered' | 'review' | 'new';
 }
 
 export default function DeckPage({ params }: { params: Promise<{ id: string }> }) {
@@ -21,6 +22,10 @@ export default function DeckPage({ params }: { params: Promise<{ id: string }> }
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
   const [deckTitle, setDeckTitle] = useState('Loading...');
   const [loading, setLoading] = useState(true);
+  const [masteredCount, setMasteredCount] = useState(0);
+  const [reviewCount, setReviewCount] = useState(0);
+  const [isSliding, setIsSliding] = useState(false);
+  const [slideDirection, setSlideDirection] = useState<'left' | 'right'>('right');
 
   useEffect(() => {
     const fetchFlashcards = async () => {
@@ -47,7 +52,11 @@ export default function DeckPage({ params }: { params: Promise<{ id: string }> }
         
         if (setError) throw setError;
         
-        setFlashcards(flashcardsData || []);
+        const cardsWithStatus = (flashcardsData || []).map(card => ({
+          ...card,
+          status: 'new' as const
+        }));
+        setFlashcards(cardsWithStatus);
         setDeckTitle(setData?.title || 'Flashcard Set');
       } catch (error) {
         // Handle error silently
@@ -60,8 +69,34 @@ export default function DeckPage({ params }: { params: Promise<{ id: string }> }
   }, [resolvedParams.id]);
 
   const handleSwipe = (direction: 'left' | 'right') => {
-    setCurrentCard((prev) => (prev + 1) % flashcards.length);
-    setShowAnswer(false);
+    const currentFlashcard = flashcards[currentCard];
+    const newStatus = direction === 'left' ? 'mastered' : 'review';
+    
+    setSlideDirection(direction);
+    setIsSliding(true);
+    
+    setTimeout(() => {
+      const updatedCards = [...flashcards];
+      updatedCards[currentCard] = { ...currentFlashcard, status: newStatus };
+      
+      const cardToMove = updatedCards.splice(currentCard, 1)[0];
+      updatedCards.push(cardToMove);
+      
+      setFlashcards(updatedCards);
+      
+      if (newStatus === 'mastered') {
+        setMasteredCount(prev => prev + 1);
+      } else {
+        setReviewCount(prev => prev + 1);
+      }
+      
+      if (currentCard >= updatedCards.length) {
+        setCurrentCard(0);
+      }
+      
+      setShowAnswer(false);
+      setIsSliding(false);
+    }, 300);
   };
 
   const startConnect4 = () => {
@@ -107,14 +142,18 @@ export default function DeckPage({ params }: { params: Promise<{ id: string }> }
           </button>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 mb-8">
+        <div className="grid grid-cols-3 gap-4 mb-8">
           <div className="bg-white p-4 rounded-lg shadow-sm border border-purple-100">
             <div className="text-2xl font-bold text-purple-600">{flashcards.length}</div>
             <div className="text-sm text-gray-500">Total Cards</div>
           </div>
           <div className="bg-white p-4 rounded-lg shadow-sm border border-purple-100">
-            <div className="text-2xl font-bold text-blue-600">{currentCard + 1}</div>
-            <div className="text-sm text-gray-500">Current Card</div>
+            <div className="text-2xl font-bold text-green-600">{masteredCount}</div>
+            <div className="text-sm text-gray-500">Mastered</div>
+          </div>
+          <div className="bg-white p-4 rounded-lg shadow-sm border border-purple-100">
+            <div className="text-2xl font-bold text-orange-600">{reviewCount}</div>
+            <div className="text-sm text-gray-500">Need Review</div>
           </div>
         </div>
 
@@ -134,10 +173,20 @@ export default function DeckPage({ params }: { params: Promise<{ id: string }> }
               </div>
               
               <div 
-                className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg p-8 min-h-64 flex items-center justify-center cursor-pointer transition-all duration-300 hover:shadow-md"
+                className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg p-8 min-h-64 flex items-center justify-center cursor-pointer transition-all duration-500 hover:shadow-md"
                 onClick={() => setShowAnswer(!showAnswer)}
+                style={{
+                  transform: `${showAnswer ? 'rotateY(180deg)' : 'rotateY(0deg)'} ${isSliding ? `translateX(${slideDirection === 'left' ? '-100%' : '100%'})` : 'translateX(0)'}`,
+                  transformStyle: 'preserve-3d',
+                  opacity: isSliding ? 0 : 1
+                }}
               >
-                <div className="text-center">
+                <div 
+                  className="text-center"
+                  style={{
+                    transform: showAnswer ? 'rotateY(180deg)' : 'rotateY(0deg)'
+                  }}
+                >
                   <h3 className="text-xl font-semibold text-gray-800 mb-4">
                     {showAnswer ? 'Answer:' : 'Question:'}
                   </h3>
@@ -158,15 +207,15 @@ export default function DeckPage({ params }: { params: Promise<{ id: string }> }
                 onClick={() => handleSwipe('right')}
                 className="px-6 py-3 bg-gradient-to-r from-orange-400 to-red-400 text-white rounded-lg hover:from-orange-500 hover:to-red-500 transition-all duration-200 flex items-center space-x-2"
               >
-                <ChevronRight size={18} />
+                <ChevronLeft size={18} />
                 <span>Need Review</span>
               </button>
               <button 
                 onClick={() => handleSwipe('left')}
                 className="px-6 py-3 bg-gradient-to-r from-green-400 to-green-500 text-white rounded-lg hover:from-green-500 hover:to-green-600 transition-all duration-200 flex items-center space-x-2"
               >
-                <ChevronLeft size={18} />
                 <span>Got It!</span>
+                <ChevronRight size={18} />
               </button>
             </div>
           )}
