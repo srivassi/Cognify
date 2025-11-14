@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Search, Plus, Upload, Grid3x3, Gamepad2 } from 'lucide-react';
+import { Search, Plus, Upload, Grid3x3, Gamepad2, LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 interface FlashcardSet {
@@ -19,6 +19,11 @@ const Dashboard = () => {
   const [showUploadPopup, setShowUploadPopup] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+
+  const handleLogout = () => {
+    localStorage.removeItem('isAuthenticated');
+    router.push('/auth');
+  };
 
   const [flashcardSets, setFlashcardSets] = useState<FlashcardSet[]>([
     { id: 1, title: 'Data Structures', cards: 24, lastStudied: '2 hours ago', color: 'from-purple-400 to-pink-400' },
@@ -91,6 +96,13 @@ const Dashboard = () => {
             <button className="px-5 py-2.5 bg-gradient-to-r from-pink-500 to-pink-600 text-white rounded-lg hover:from-pink-600 hover:to-pink-700 transition-all duration-200 flex items-center space-x-2 shadow-md hover:shadow-lg">
               <Gamepad2 size={18} />
               <span className="font-medium">Jeopardy</span>
+            </button>
+            <button 
+              onClick={handleLogout}
+              className="px-4 py-2.5 bg-gradient-to-r from-gray-500 to-gray-600 text-white rounded-lg hover:from-gray-600 hover:to-gray-700 transition-all duration-200 flex items-center space-x-2 shadow-md hover:shadow-lg"
+            >
+              <LogOut size={18} />
+              <span className="font-medium">Sign Out</span>
             </button>
           </div>
         </div>
