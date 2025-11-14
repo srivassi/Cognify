@@ -1,16 +1,36 @@
-# Hackathon Project
+# Cognify - Gamified Learning Platform
 
-Full-stack application with Next.js frontend, FastAPI backend, Supabase database, and Gemini AI integration.
+*CSGirlies Fall Hackathon 2025 Submission*
 
-## Tech Stack
+Transform your PDFs into interactive learning experiences with AI-powered flashcards and multiplayer games.
+
+## 🚀 Features
+
+### 📚 Smart Flashcards
+- Upload PDFs and generate flashcards automatically using Gemini AI
+- Interactive study mode with progress tracking
+- Spaced repetition learning system
+
+### 🎯 Jeopardy Solo Mode
+- Play Jeopardy-style games with your flashcard content
+- Point-based scoring system
+- Solo practice mode
+
+### 🎮 Connect 4 Multiplayer
+- Real-time multiplayer battles
+- Answer questions to earn token placements
+- AI-powered answer scoring with accuracy scores and relevant grading of answers
+
+## 🛠 Tech Stack
 
 - **Frontend**: Next.js 16, React 19, TypeScript, Tailwind CSS
 - **Backend**: FastAPI, Python
 - **Database**: Supabase (PostgreSQL)
 - **AI**: Google Gemini 2.5 Flash via LangChain
 - **Authentication**: Supabase Auth
+- **Real-time**: Supabase Realtime
 
-## Setup
+## 🚀 Quick Start
 
 ### Frontend
 ```bash
@@ -31,8 +51,15 @@ uvicorn main:app --reload --port 8000
 ### Environment Variables
 Create `.env` files in both frontend and backend directories with your Supabase and Gemini API credentials.
 
-## Endpoints
+## 📱 Access Points
 
-- Frontend: http://localhost:3000
-- Backend: http://localhost:8000
-- API Docs: http://localhost:8000/docs
+- **Frontend**: http://localhost:3000
+- **Backend**: http://localhost:8000
+- **API Docs**: http://localhost:8000/docs
+
+## 🎯 How It Works
+
+1. **Upload PDF** → AI extracts and processes content
+2. **Generate Flashcards** → Gemini creates Q&A pairs
+3. **Study & Play** → Interactive learning with games
+4. **Track Progress** → Monitor mastery and review needs
