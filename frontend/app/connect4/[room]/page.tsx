@@ -771,7 +771,10 @@ export default function Connect4Page({ params }: Connect4PageProps) {
   };
 
   const submitAnswers = async () => {
-    if (!currentQuestion || isSubmitting) return;
+    if (!currentQuestion || isSubmitting) {
+      console.log('submitAnswers blocked - already submitting or no question');
+      return;
+    }
     
     console.log('submitAnswers called by player:', userPlayerNumber, 'isHost:', isHost);
     
@@ -803,9 +806,15 @@ export default function Connect4Page({ params }: Connect4PageProps) {
       console.error('No channel reference available!');
     }
     
-    // Only host processes scoring
+    // Only host processes scoring - add extra guard
     if (!isHost) {
       console.log('Non-host submitted, waiting for host to process scoring');
+      return;
+    }
+    
+    // Extra guard to prevent duplicate host processing
+    if (showScoring) {
+      console.log('Host already processed scoring for this question');
       return;
     }
     
