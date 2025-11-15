@@ -127,38 +127,49 @@ const Dashboard = () => {
   const [showLoader, setShowLoader] = useState(false);
   const [showJoinRoomPopup, setShowJoinRoomPopup] = useState(false);
   const [roomCode, setRoomCode] = useState('');
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [deletingSetId, setDeletingSetId] = useState<number | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [setToDelete, setSetToDelete] = useState<FlashcardSet | null>(null);
 
   const [flashcardSets, setFlashcardSets] = useState<FlashcardSet[]>([]);
   
+  const loadFlashcardSets = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      
+      const { data: sets, error } = await supabase
+        .from('flashcard_sets')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      const mappedSets = sets.map((set: any) => ({
+        id: set.id,
+        title: set.title,
+        cards: set.card_count,
+        lastStudied: set.last_studied ? new Date(set.last_studied).toLocaleDateString('en-IE') : 'Never',
+        color: 'from-blue-400 to-purple-400'
+      }));
+      
+      setFlashcardSets(mappedSets);
+    } catch (error) {
+      // Handle error silently
+    }
+  };
+
   useEffect(() => {
-    const loadFlashcardSets = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) return;
-        
-        const { data: sets, error } = await supabase
-          .from('flashcard_sets')
-          .select('*')
-          .eq('user_id', session.user.id)
-          .order('created_at', { ascending: false });
-        
-        if (error) throw error;
-        
-        const mappedSets = sets.map((set: any) => ({
-          id: set.id,
-          title: set.title,
-          cards: set.card_count,
-          lastStudied: new Date(set.created_at).toLocaleDateString(),
-          color: 'from-blue-400 to-purple-400'
-        }));
-        
-        setFlashcardSets(mappedSets);
-      } catch (error) {
-        // Handle error silently
-      }
-    };
-    
     loadFlashcardSets();
+    
+    // Refresh data when user returns to tab
+    const handleFocus = () => loadFlashcardSets();
+    window.addEventListener('focus', handleFocus);
+    
+    return () => window.removeEventListener('focus', handleFocus);
   }, []);
 
   const handleDrag = (e: React.DragEvent) => {
@@ -244,15 +255,54 @@ const Dashboard = () => {
         setShowUploadPopup(false);
         setUploadedFile(null);
         
-        alert(`Success! Created ${result.flashcards.length} flashcards from ${result.title}`);
+        setSuccessMessage(`Successfully created ${result.flashcards.length} flashcards from "${result.title}"!`);
+        setShowSuccessModal(true);
       } else {
-        alert('Error processing PDF: ' + result.message);
+        setSuccessMessage('Error processing PDF: ' + result.message);
+        setShowSuccessModal(true);
       }
     } catch (error) {
       // Handle error silently
     } finally {
       setIsProcessing(false);
       setShowLoader(false);
+    }
+  };
+
+  const confirmDelete = (set: FlashcardSet) => {
+    setSetToDelete(set);
+    setShowDeleteModal(true);
+  };
+
+  const deleteSet = async () => {
+    if (!setToDelete) return;
+
+    setDeletingSetId(setToDelete.id);
+    setShowDeleteModal(false);
+    
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      await supabase
+        .from('flashcards')
+        .delete()
+        .eq('set_id', setToDelete.id);
+
+      const { error } = await supabase
+        .from('flashcard_sets')
+        .delete()
+        .eq('id', setToDelete.id)
+        .eq('user_id', session.user.id);
+
+      if (error) throw error;
+
+      setFlashcardSets(prev => prev.filter(set => set.id !== setToDelete.id));
+    } catch (error) {
+      // Handle error silently
+    } finally {
+      setDeletingSetId(null);
+      setSetToDelete(null);
     }
   };
 
@@ -329,14 +379,25 @@ const Dashboard = () => {
 
           <div className="space-y-2">
             {flashcardSets.map(set => (
-              <button
-                key={set.id}
-                onClick={() => router.push(`/deck/${set.id}`)}
-                className="w-full text-left px-4 py-3 rounded-lg transition-all duration-200 hover:bg-purple-50 border-2 border-transparent hover:border-purple-300"
-              >
-                <div className="font-medium text-gray-800 mb-1">{set.title}</div>
-                <div className="text-sm text-gray-500">{set.cards} cards</div>
-              </button>
+              <div key={set.id} className="group relative">
+                <button
+                  onClick={() => router.push(`/deck/${set.id}`)}
+                  className="w-full text-left px-4 py-3 rounded-lg transition-all duration-200 hover:bg-purple-50 border-2 border-transparent hover:border-purple-300"
+                >
+                  <div className="font-medium text-gray-800 mb-1">{set.title}</div>
+                  <div className="text-sm text-gray-500">{set.cards} cards</div>
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    confirmDelete(set);
+                  }}
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded"
+                  title="Delete set"
+                >
+                  ×
+                </button>
+              </div>
             ))}
           </div>
         </aside>
@@ -363,23 +424,35 @@ const Dashboard = () => {
               <h2 className="text-2xl font-bold text-gray-800 mb-6">Your Flashcard Sets</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredSets.map(set => (
-                  <div
-                    key={set.id}
-                    onClick={() => router.push(`/deck/${set.id}`)}
-                    className="bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden cursor-pointer transform hover:-translate-y-1"
-                  >
-                    <div className={`h-32 bg-gradient-to-br ${set.color} p-6 flex items-center justify-center`}>
-                      <h3 className="text-white font-bold text-xl text-center">{set.title}</h3>
-                    </div>
-                    <div className="p-5">
-                      <div className="flex items-center justify-between mb-3">
-                        <span className="text-2xl font-bold text-purple-600">{set.cards}</span>
-                        <span className="text-sm text-gray-500">cards</span>
+                  <div key={set.id} className="group relative">
+                    <div
+                      onClick={() => router.push(`/deck/${set.id}`)}
+                      className="bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden cursor-pointer transform hover:-translate-y-1"
+                    >
+                      <div className={`h-32 bg-gradient-to-br ${set.color} p-6 flex items-center justify-center`}>
+                        <h3 className="text-white font-bold text-xl text-center">{set.title}</h3>
                       </div>
-                      <div className="text-sm text-gray-500">
-                        Last studied: {set.lastStudied}
+                      <div className="p-5">
+                        <div className="flex items-baseline space-x-2 mb-3">
+                          <span className="text-2xl font-bold text-purple-600">{set.cards}</span>
+                          <span className="text-sm text-gray-500">cards</span>
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          Last studied: {set.lastStudied}
+                        </div>
                       </div>
                     </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        confirmDelete(set);
+                      }}
+                      disabled={deletingSetId === set.id}
+                      className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-2 text-red-500 hover:text-red-700 hover:bg-white hover:bg-opacity-80 rounded-full shadow-md"
+                      title="Delete set"
+                    >
+                      {deletingSetId === set.id ? '...' : '×'}
+                    </button>
                   </div>
                 ))}
               </div>
@@ -512,6 +585,61 @@ const Dashboard = () => {
             >
               Cancel
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Success Modal */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-8 max-w-md w-full mx-4 text-center">
+            <div className="w-16 h-16 bg-gradient-to-br from-green-400 to-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-bold text-gray-800 mb-2">Success!</h3>
+            <p className="text-gray-600 mb-6">{successMessage}</p>
+            <button 
+              onClick={() => setShowSuccessModal(false)}
+              className="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all duration-200 font-semibold"
+            >
+              Continue
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && setToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-8 max-w-md w-full mx-4 text-center">
+            <div className="w-16 h-16 bg-gradient-to-br from-red-400 to-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-bold text-gray-800 mb-2">Delete Flashcard Set</h3>
+            <p className="text-gray-600 mb-2">Are you sure you want to delete</p>
+            <p className="font-semibold text-gray-800 mb-4">"{setToDelete.title}"?</p>
+            <p className="text-sm text-red-600 mb-6">This action cannot be undone and will delete all {setToDelete.cards} flashcards.</p>
+            <div className="flex space-x-3">
+              <button 
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setSetToDelete(null);
+                }}
+                className="flex-1 px-4 py-3 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 transition-all duration-200 font-medium"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={deleteSet}
+                className="flex-1 px-4 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all duration-200 font-medium"
+              >
+                Delete
+              </button>
+            </div>
           </div>
         </div>
       )}

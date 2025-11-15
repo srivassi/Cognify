@@ -58,6 +58,13 @@ export default function DeckPage({ params }: { params: Promise<{ id: string }> }
         }));
         setFlashcards(cardsWithStatus);
         setDeckTitle(setData?.title || 'Flashcard Set');
+        
+        // Update last_studied timestamp
+        await supabase
+          .from('flashcard_sets')
+          .update({ last_studied: new Date().toISOString() })
+          .eq('id', resolvedParams.id)
+          .eq('user_id', session.user.id);
       } catch (error) {
         setDeckTitle('Error loading deck');
       } finally {
