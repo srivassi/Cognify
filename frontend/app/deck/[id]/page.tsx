@@ -58,8 +58,15 @@ export default function DeckPage({ params }: { params: Promise<{ id: string }> }
         }));
         setFlashcards(cardsWithStatus);
         setDeckTitle(setData?.title || 'Flashcard Set');
+        
+        // Update last_studied timestamp
+        await supabase
+          .from('flashcard_sets')
+          .update({ last_studied: new Date().toISOString() })
+          .eq('id', resolvedParams.id)
+          .eq('user_id', session.user.id);
       } catch (error) {
-        // Handle error silently
+        setDeckTitle('Error loading deck');
       } finally {
         setLoading(false);
       }
@@ -101,7 +108,7 @@ export default function DeckPage({ params }: { params: Promise<{ id: string }> }
 
   const startConnect4 = () => {
     const roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-    router.push(`/connect4/${roomCode}`);
+    router.push(`/connect4/${roomCode}?deck=${resolvedParams.id}`);
   };
 
   const startJeopardy = () => {

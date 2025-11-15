@@ -5,6 +5,109 @@ import { Search, Plus, Upload, Grid3x3, Gamepad2, LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 
+function Connect4Loader() {
+  const [droppedCoins, setDroppedCoins] = useState<number[]>([]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setDroppedCoins(prev => {
+        const newCoin = Math.floor(Math.random() * 7);
+        return [...prev, newCoin].slice(-21);
+      });
+    }, 400);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const getCoinColor = (index: number) => {
+    return index % 2 === 0 ? 'purple' : 'pink';
+  };
+
+  const getCoinPosition = (coinIndex: number) => {
+    const column = droppedCoins[coinIndex];
+    const coinsInColumn = droppedCoins.slice(0, coinIndex + 1).filter(c => c === column).length;
+    const row = Math.min(coinsInColumn - 1, 5);
+    return { column, row };
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-purple-100 flex items-center justify-center">
+      <div className="text-center">
+        <div className="mb-8">
+          <h2 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-4">
+            Generating Flashcards
+          </h2>
+          <p className="text-gray-600 text-lg">Please wait while we process your content...</p>
+        </div>
+
+        <div className="relative bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl p-6 shadow-2xl">
+          <div className="grid grid-cols-7 gap-3">
+            {Array.from({ length: 42 }, (_, i) => {
+              const column = i % 7;
+              const row = Math.floor(i / 7);
+              
+              const coinInPosition = droppedCoins.findIndex((coinColumn, coinIndex) => {
+                const pos = getCoinPosition(coinIndex);
+                return pos.column === column && pos.row === (5 - row);
+              });
+
+              return (
+                <div
+                  key={i}
+                  className="w-12 h-12 rounded-full border-4 border-blue-800 bg-gradient-to-br from-blue-100 to-blue-200 shadow-inner relative overflow-hidden"
+                >
+                  {coinInPosition !== -1 && (
+                    <div
+                      className={`absolute inset-1 rounded-full shadow-lg coin-drop ${
+                        getCoinColor(coinInPosition) === 'purple'
+                          ? 'bg-gradient-to-br from-purple-400 to-purple-600'
+                          : 'bg-gradient-to-br from-pink-400 to-pink-600'
+                      }`}
+                      style={{
+                        animationDelay: `${coinInPosition * 0.1}s`,
+                        boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.3), 0 4px 8px rgba(0,0,0,0.2)'
+                      }}
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          
+          <div className="absolute inset-6 grid grid-cols-7 gap-3 pointer-events-none">
+            {Array.from({ length: 42 }, (_, i) => (
+              <div
+                key={i}
+                className="w-12 h-12 rounded-full"
+                style={{
+                  boxShadow: 'inset 0 4px 8px rgba(0,0,0,0.3)'
+                }}
+              />
+            ))}
+          </div>
+        </div>
+
+        <div className="flex justify-center space-x-2 mt-8">
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              className={`w-3 h-3 rounded-full coin-bounce ${
+                i % 2 === 0 
+                  ? 'bg-gradient-to-br from-purple-400 to-purple-600' 
+                  : 'bg-gradient-to-br from-pink-400 to-pink-600'
+              }`}
+              style={{
+                animationDelay: `${i * 0.2}s`,
+                boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+              }}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 interface FlashcardSet {
   id: number;
   title: string;
@@ -21,38 +124,52 @@ const Dashboard = () => {
   const [dragActive, setDragActive] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showLoader, setShowLoader] = useState(false);
+  const [showJoinRoomPopup, setShowJoinRoomPopup] = useState(false);
+  const [roomCode, setRoomCode] = useState('');
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [deletingSetId, setDeletingSetId] = useState<number | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [setToDelete, setSetToDelete] = useState<FlashcardSet | null>(null);
 
   const [flashcardSets, setFlashcardSets] = useState<FlashcardSet[]>([]);
   
+  const loadFlashcardSets = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      
+      const { data: sets, error } = await supabase
+        .from('flashcard_sets')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      const mappedSets = sets.map((set: any) => ({
+        id: set.id,
+        title: set.title,
+        cards: set.card_count,
+        lastStudied: set.last_studied ? new Date(set.last_studied).toLocaleDateString('en-IE') : 'Never',
+        color: 'from-blue-400 to-purple-400'
+      }));
+      
+      setFlashcardSets(mappedSets);
+    } catch (error) {
+      // Handle error silently
+    }
+  };
+
   useEffect(() => {
-    const loadFlashcardSets = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) return;
-        
-        const { data: sets, error } = await supabase
-          .from('flashcard_sets')
-          .select('*')
-          .eq('user_id', session.user.id)
-          .order('created_at', { ascending: false });
-        
-        if (error) throw error;
-        
-        const mappedSets = sets.map((set: any) => ({
-          id: set.id,
-          title: set.title,
-          cards: set.card_count,
-          lastStudied: new Date(set.created_at).toLocaleDateString(),
-          color: 'from-blue-400 to-purple-400'
-        }));
-        
-        setFlashcardSets(mappedSets);
-      } catch (error) {
-        setFlashcardSets([]);
-      }
-    };
-    
     loadFlashcardSets();
+    
+    // Refresh data when user returns to tab
+    const handleFocus = () => loadFlashcardSets();
+    window.addEventListener('focus', handleFocus);
+    
+    return () => window.removeEventListener('focus', handleFocus);
   }, []);
 
   const handleDrag = (e: React.DragEvent) => {
@@ -80,6 +197,7 @@ const Dashboard = () => {
     if (!uploadedFile) return;
     
     setIsProcessing(true);
+    setShowLoader(true);
     
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -137,20 +255,64 @@ const Dashboard = () => {
         setShowUploadPopup(false);
         setUploadedFile(null);
         
-        alert(`Success! Created ${result.flashcards.length} flashcards from ${result.title}`);
+        setSuccessMessage(`Successfully created ${result.flashcards.length} flashcards from "${result.title}"!`);
+        setShowSuccessModal(true);
       } else {
-        alert('Error processing PDF: ' + result.message);
+        setSuccessMessage('Error processing PDF: ' + result.message);
+        setShowSuccessModal(true);
       }
     } catch (error) {
-      alert('Error creating flashcards');
+      // Handle error silently
     } finally {
       setIsProcessing(false);
+      setShowLoader(false);
+    }
+  };
+
+  const confirmDelete = (set: FlashcardSet) => {
+    setSetToDelete(set);
+    setShowDeleteModal(true);
+  };
+
+  const deleteSet = async () => {
+    if (!setToDelete) return;
+
+    setDeletingSetId(setToDelete.id);
+    setShowDeleteModal(false);
+    
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      await supabase
+        .from('flashcards')
+        .delete()
+        .eq('set_id', setToDelete.id);
+
+      const { error } = await supabase
+        .from('flashcard_sets')
+        .delete()
+        .eq('id', setToDelete.id)
+        .eq('user_id', session.user.id);
+
+      if (error) throw error;
+
+      setFlashcardSets(prev => prev.filter(set => set.id !== setToDelete.id));
+    } catch (error) {
+      // Handle error silently
+    } finally {
+      setDeletingSetId(null);
+      setSetToDelete(null);
     }
   };
 
   const filteredSets = flashcardSets.filter(set =>
     set.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  if (showLoader) {
+    return <Connect4Loader />;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-purple-100">
@@ -167,7 +329,10 @@ const Dashboard = () => {
           </div>
           
           <div className="flex items-center space-x-3">
-            <button className="px-5 py-2.5 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg hover:from-purple-600 hover:to-purple-700 transition-all duration-200 flex items-center space-x-2 shadow-md hover:shadow-lg">
+            <button 
+              onClick={() => setShowJoinRoomPopup(true)}
+              className="px-5 py-2.5 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg hover:from-purple-600 hover:to-purple-700 transition-all duration-200 flex items-center space-x-2 shadow-md hover:shadow-lg"
+            >
               <Grid3x3 size={18} />
               <span className="font-medium">Connect 4</span>
             </button>
@@ -214,14 +379,25 @@ const Dashboard = () => {
 
           <div className="space-y-2">
             {flashcardSets.map(set => (
-              <button
-                key={set.id}
-                onClick={() => router.push(`/deck/${set.id}`)}
-                className="w-full text-left px-4 py-3 rounded-lg transition-all duration-200 hover:bg-purple-50 border-2 border-transparent hover:border-purple-300"
-              >
-                <div className="font-medium text-gray-800 mb-1">{set.title}</div>
-                <div className="text-sm text-gray-500">{set.cards} cards</div>
-              </button>
+              <div key={set.id} className="group relative">
+                <button
+                  onClick={() => router.push(`/deck/${set.id}`)}
+                  className="w-full text-left px-4 py-3 rounded-lg transition-all duration-200 hover:bg-purple-50 border-2 border-transparent hover:border-purple-300"
+                >
+                  <div className="font-medium text-gray-800 mb-1">{set.title}</div>
+                  <div className="text-sm text-gray-500">{set.cards} cards</div>
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    confirmDelete(set);
+                  }}
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded"
+                  title="Delete set"
+                >
+                  ×
+                </button>
+              </div>
             ))}
           </div>
         </aside>
@@ -248,23 +424,35 @@ const Dashboard = () => {
               <h2 className="text-2xl font-bold text-gray-800 mb-6">Your Flashcard Sets</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredSets.map(set => (
-                  <div
-                    key={set.id}
-                    onClick={() => router.push(`/deck/${set.id}`)}
-                    className="bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden cursor-pointer transform hover:-translate-y-1"
-                  >
-                    <div className={`h-32 bg-gradient-to-br ${set.color} p-6 flex items-center justify-center`}>
-                      <h3 className="text-white font-bold text-xl text-center">{set.title}</h3>
-                    </div>
-                    <div className="p-5">
-                      <div className="flex items-center justify-between mb-3">
-                        <span className="text-2xl font-bold text-purple-600">{set.cards}</span>
-                        <span className="text-sm text-gray-500">cards</span>
+                  <div key={set.id} className="group relative">
+                    <div
+                      onClick={() => router.push(`/deck/${set.id}`)}
+                      className="bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden cursor-pointer transform hover:-translate-y-1"
+                    >
+                      <div className={`h-32 bg-gradient-to-br ${set.color} p-6 flex items-center justify-center`}>
+                        <h3 className="text-white font-bold text-xl text-center">{set.title}</h3>
                       </div>
-                      <div className="text-sm text-gray-500">
-                        Last studied: {set.lastStudied}
+                      <div className="p-5">
+                        <div className="flex items-baseline space-x-2 mb-3">
+                          <span className="text-2xl font-bold text-purple-600">{set.cards}</span>
+                          <span className="text-sm text-gray-500">cards</span>
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          Last studied: {set.lastStudied}
+                        </div>
                       </div>
                     </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        confirmDelete(set);
+                      }}
+                      disabled={deletingSetId === set.id}
+                      className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-2 text-red-500 hover:text-red-700 hover:bg-white hover:bg-opacity-80 rounded-full shadow-md"
+                      title="Delete set"
+                    >
+                      {deletingSetId === set.id ? '...' : '×'}
+                    </button>
                   </div>
                 ))}
               </div>
@@ -348,6 +536,110 @@ const Dashboard = () => {
             >
               Cancel
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Join Room Popup */}
+      {showJoinRoomPopup && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-8 max-w-md w-full mx-4">
+            <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">Join Connect 4 Room</h2>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Room Code
+                </label>
+                <input
+                  type="text"
+                  value={roomCode}
+                  onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+                  placeholder="ABC123"
+                  className="w-full px-4 py-3 bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-300 rounded-lg focus:outline-none focus:border-purple-500 focus:from-purple-100 focus:to-pink-100 transition-all duration-200 text-center text-xl font-bold tracking-widest text-purple-700 placeholder-purple-400"
+                  maxLength={6}
+                />
+              </div>
+            </div>
+
+            <button 
+              onClick={() => {
+                if (roomCode.length === 6) {
+                  router.push(`/connect4/${roomCode}`);
+                } else {
+                  alert('Please enter a valid 6-character room code');
+                }
+              }}
+              disabled={roomCode.length !== 6}
+              className="w-full mt-6 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Join Room
+            </button>
+
+            <button 
+              onClick={() => {
+                setShowJoinRoomPopup(false);
+                setRoomCode('');
+              }}
+              className="w-full mt-3 px-6 py-3 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 transition-all duration-200"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Success Modal */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-8 max-w-md w-full mx-4 text-center">
+            <div className="w-16 h-16 bg-gradient-to-br from-green-400 to-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-bold text-gray-800 mb-2">Success!</h3>
+            <p className="text-gray-600 mb-6">{successMessage}</p>
+            <button 
+              onClick={() => setShowSuccessModal(false)}
+              className="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all duration-200 font-semibold"
+            >
+              Continue
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && setToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-8 max-w-md w-full mx-4 text-center">
+            <div className="w-16 h-16 bg-gradient-to-br from-red-400 to-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-bold text-gray-800 mb-2">Delete Flashcard Set</h3>
+            <p className="text-gray-600 mb-2">Are you sure you want to delete</p>
+            <p className="font-semibold text-gray-800 mb-4">"{setToDelete.title}"?</p>
+            <p className="text-sm text-red-600 mb-6">This action cannot be undone and will delete all {setToDelete.cards} flashcards.</p>
+            <div className="flex space-x-3">
+              <button 
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setSetToDelete(null);
+                }}
+                className="flex-1 px-4 py-3 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 transition-all duration-200 font-medium"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={deleteSet}
+                className="flex-1 px-4 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all duration-200 font-medium"
+              >
+                Delete
+              </button>
+            </div>
           </div>
         </div>
       )}

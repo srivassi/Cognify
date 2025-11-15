@@ -1,32 +1,416 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Copy, Users } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabaseClient';
 
-export default function Connect4Page({ params }: { params: Promise<{ room: string }> }) {
+interface Player {
+  id: string;
+  user_id: string;
+  player_number: number;
+  email?: string;
+}
+
+interface Room {
+  id: string;
+  room_code: string;
+  host_user_id: string;
+  status: string;
+  deck_id?: number;
+}
+
+interface Connect4PageProps {
+  params: Promise<{ room: string }>;
+}
+
+export default function Connect4Page({ params }: Connect4PageProps) {
   const router = useRouter();
-  const resolvedParams = React.use(params);
-  const [players, setPlayers] = useState<string[]>(['You (Host)']);
-  const [gameCode] = useState(resolvedParams.room);
+  const [resolvedParams, setResolvedParams] = useState<{ room: string } | null>(null);
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [room, setRoom] = useState<Room | null>(null);
   const [gameStarted, setGameStarted] = useState(false);
+  const [isHost, setIsHost] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [hasJoined, setHasJoined] = useState(false);
+  const [deckName, setDeckName] = useState<string>('');
   const [board, setBoard] = useState(Array(6).fill(null).map(() => Array(7).fill(null)));
   const [currentPlayer, setCurrentPlayer] = useState(1);
   const [timer, setTimer] = useState(30);
   const [userAnswer, setUserAnswer] = useState('');
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<{text: string, type: 'correct' | 'incorrect' | 'improvement'}[]>([]);
+  
+  const gameCode = resolvedParams?.room || '';
+  
+  useEffect(() => {
+    params.then(setResolvedParams);
+  }, [params]);
+
+  useEffect(() => {
+    if (gameCode) {
+      initializeRoom();
+    }
+  }, [gameCode]);
+
+  useEffect(() => {
+    if (!room) return;
+
+    loadPlayers();
+
+    const playersSubscription = supabase
+      .channel(`room-${room.id}-players`)
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'connect4_players', filter: `room_id=eq.${room.id}` },
+        (payload) => {
+          if (payload.eventType === 'DELETE') {
+            loadPlayers();
+            if (gameStarted) {
+              alert('A player has left the game. Returning to home.');
+              router.push('/');
+            }
+          } else {
+            loadPlayers();
+          }
+        }
+      )
+      .on('broadcast', { event: 'player_joined' }, () => {
+        loadPlayers();
+      })
+      .on('broadcast', { event: 'player_left' }, () => {
+        loadPlayers();
+        if (gameStarted) {
+          alert('A player has left the game. Returning to home.');
+          router.push('/');
+        }
+      })
+      .subscribe();
+
+    const roomSubscription = supabase
+      .channel(`room-${room.id}-status`)
+      .on('postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'connect4_rooms', filter: `id=eq.${room.id}` },
+        (payload) => {
+          if (payload.new.status === 'playing') {
+            setGameStarted(true);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      playersSubscription.unsubscribe();
+      roomSubscription.unsubscribe();
+    };
+  }, [room, gameStarted]);
+
+  useEffect(() => {
+    const handleBeforeUnload = async () => {
+      if (room && hasJoined) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          await leaveRoom();
+        }
+      }
+    };
+
+    const handleRouteChange = () => {
+      if (room && hasJoined) {
+        leaveRoom();
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      handleRouteChange();
+    };
+  }, [room, hasJoined]);
+
+  if (!resolvedParams) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-purple-100 flex items-center justify-center">
+        <div className="text-lg text-gray-600">Loading...</div>
+      </div>
+    );
+  }
+
+  const initializeRoom = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        router.push('/auth');
+        return;
+      }
+
+      const { data: existingRoom, error: roomError } = await supabase
+        .from('connect4_rooms')
+        .select('*')
+        .eq('room_code', gameCode)
+        .maybeSingle();
+
+      if (roomError) return;
+
+      if (existingRoom) {
+        setRoom(existingRoom);
+        setIsHost(existingRoom.host_user_id === session.user.id);
+        
+        if (existingRoom.deck_id) {
+          const { data: deckData } = await supabase
+            .from('flashcard_sets')
+            .select('title')
+            .eq('id', existingRoom.deck_id)
+            .single();
+          
+          setDeckName(deckData?.title || `Flashcard Set ${existingRoom.deck_id}`);
+        } else {
+          setDeckName(`Room ${gameCode}`);
+        }
+        
+        const { data: existingPlayer } = await supabase
+          .from('connect4_players')
+          .select('*')
+          .eq('room_id', existingRoom.id)
+          .eq('user_id', session.user.id)
+          .single();
+        
+        if (existingPlayer) {
+          setHasJoined(true);
+        }
+      } else {
+        await createRoom(session.user.id);
+      }
+    } catch (error) {
+      // Handle error silently
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const createRoom = async (userId: string) => {
+    try {
+      const { data: existingRoom } = await supabase
+        .from('connect4_rooms')
+        .select('*')
+        .eq('room_code', gameCode)
+        .maybeSingle();
+
+      if (existingRoom) {
+        setRoom(existingRoom);
+        setIsHost(existingRoom.host_user_id === userId);
+        await joinRoom(existingRoom.id, userId);
+        return;
+      }
+
+      const urlParams = new URLSearchParams(window.location.search);
+      const deckId = urlParams.get('deck');
+      
+      const { data: newRoom, error } = await supabase
+        .from('connect4_rooms')
+        .insert({
+          room_code: gameCode,
+          host_user_id: userId,
+          status: 'waiting',
+          deck_id: deckId ? parseInt(deckId) : null
+        })
+        .select()
+        .single();
+
+      if (error) {
+        if (error.code === '23505') {
+          const { data: existingRoom } = await supabase
+            .from('connect4_rooms')
+            .select('*')
+            .eq('room_code', gameCode)
+            .single();
+          
+          if (existingRoom) {
+            setRoom(existingRoom);
+            setIsHost(existingRoom.host_user_id === userId);
+            await joinRoom(existingRoom.id, userId);
+            return;
+          }
+        }
+        throw error;
+      }
+      
+      await supabase
+        .from('connect4_players')
+        .insert({
+          room_id: newRoom.id,
+          user_id: userId,
+          player_number: 1
+        });
+
+      setRoom(newRoom);
+      setIsHost(true);
+      setHasJoined(true);
+      
+      if (deckId) {
+        const { data: deckData } = await supabase
+          .from('flashcard_sets')
+          .select('title')
+          .eq('id', parseInt(deckId))
+          .single();
+        
+        setDeckName(deckData?.title || `Flashcard Set ${deckId}`);
+      } else {
+        setDeckName(`Room ${gameCode}`);
+      }
+    } catch (error) {
+      // Handle error silently
+    }
+  };
+
+  const leaveRoom = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session || !room) return;
+      
+      await supabase
+        .from('connect4_players')
+        .delete()
+        .eq('room_id', room.id)
+        .eq('user_id', session.user.id);
+
+      await supabase
+        .channel(`room-${room.id}-players`)
+        .send({
+          type: 'broadcast',
+          event: 'player_left',
+          payload: { user_id: session.user.id }
+        });
+    } catch (error) {
+      // Handle error silently
+    }
+  };
+
+  const joinRoom = async (roomId: string, userId: string) => {
+    try {
+      const { data: existingPlayer, error: checkError } = await supabase
+        .from('connect4_players')
+        .select('*')
+        .eq('room_id', roomId)
+        .eq('user_id', userId)
+        .single();
+
+      if (checkError && checkError.code !== 'PGRST116') return;
+      if (existingPlayer) return;
+
+      const { data: players } = await supabase
+        .from('connect4_players')
+        .select('player_number')
+        .eq('room_id', roomId)
+        .order('player_number');
+
+      let playerNumber = 1;
+      if (players && players.length > 0) {
+        const existingNumbers = players.map(p => p.player_number);
+        if (existingNumbers.includes(1)) {
+          playerNumber = 2;
+        }
+      }
+      
+      if (!players || players.length < 2) {
+        const { error } = await supabase
+          .from('connect4_players')
+          .insert({
+            room_id: roomId,
+            user_id: userId,
+            player_number: playerNumber
+          });
+
+        if (!error) {
+          setHasJoined(true);
+          await loadPlayers();
+          
+          const triggerChannel = supabase.channel(`room-${roomId}-players`);
+          await triggerChannel.send({
+            type: 'broadcast',
+            event: 'player_joined',
+            payload: { player_number: playerNumber }
+          });
+        }
+      }
+    } catch (error) {
+      // Handle error silently
+    }
+  };
+
+  const loadPlayers = async () => {
+    if (!room) return;
+    
+    try {
+      const { data: playersData } = await supabase
+        .from('connect4_players')
+        .select('*')
+        .eq('room_id', room.id)
+        .order('player_number');
+
+      if (playersData) {
+        setPlayers(playersData);
+      }
+    } catch (error) {
+      // Handle error silently
+    }
+  };
 
   const generateNewCode = () => {
     const newCode = Math.random().toString(36).substring(2, 8).toUpperCase();
     router.push(`/connect4/${newCode}`);
   };
 
+  const copyRoomCode = async () => {
+    try {
+      await navigator.clipboard.writeText(gameCode);
+      // Simple feedback - could add a toast notification here
+      const button = document.querySelector('.copy-button');
+      if (button) {
+        const originalText = button.textContent;
+        button.textContent = 'Copied!';
+        setTimeout(() => {
+          button.textContent = originalText;
+        }, 2000);
+      }
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+
   const currentQuestion = "What is a Binary Search Tree and how does it maintain its ordering property?";
 
-  const startGame = () => {
-    setGameStarted(true);
-    setTimer(30);
+  const startGame = async () => {
+    if (!isHost || !room || players.length < 1) return;
+    
+    try {
+      const { error: roomError } = await supabase
+        .from('connect4_rooms')
+        .update({ status: 'playing' })
+        .eq('id', room.id);
+
+      if (roomError) {
+        console.error('Error updating room status:', roomError);
+        return;
+      }
+      
+      const { error: gameError } = await supabase
+        .from('connect4_game_state')
+        .insert({
+          room_id: room.id,
+          current_player: 1
+        });
+
+      if (gameError) {
+        console.error('Error creating game state:', gameError);
+        return;
+      }
+      
+      setGameStarted(true);
+      setTimer(30);
+    } catch (error) {
+      console.error('Error starting game:', error);
+    }
   };
 
   const submitAnswer = () => {
@@ -72,9 +456,16 @@ export default function Connect4Page({ params }: { params: Promise<{ room: strin
             >
               <ArrowLeft size={24} className="text-purple-600" />
             </button>
-            <h1 className="text-3xl font-bold text-gray-800">
-              {gameStarted ? 'Connect4 Game' : 'Connect4 Waiting Room'}
-            </h1>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-800">
+                {gameStarted ? 'Connect4 Game' : 'Connect4 Waiting Room'}
+              </h1>
+              {deckName && (
+                <p className="text-lg text-gray-600 mt-1">
+                  Playing with: {deckName}
+                </p>
+              )}
+            </div>
           </div>
           
           {gameStarted && (
@@ -207,74 +598,110 @@ export default function Connect4Page({ params }: { params: Promise<{ room: strin
                   {gameCode}
                 </div>
                 <p className="text-sm text-gray-600">Share this code with friends to join</p>
+                <button 
+                  onClick={copyRoomCode}
+                  className="copy-button mt-2 px-3 py-1 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors text-sm flex items-center space-x-1 mx-auto"
+                >
+                  <Copy size={14} />
+                  <span>Copy Code</span>
+                </button>
               </div>
             </div>
             
             <div className="text-center space-y-4">
-              <button 
-                onClick={generateNewCode}
-                className="px-6 py-3 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg hover:from-purple-600 hover:to-purple-700 transition-all duration-200 font-medium"
-              >
-                Generate New Code
-              </button>
-              
               <div className="text-sm text-gray-500">
-                Players can join at: <span className="font-mono bg-gray-100 px-2 py-1 rounded">flashlearn.com/join</span>
+                Share this URL: <span className="font-mono bg-gray-100 px-2 py-1 rounded text-xs break-all">
+                  {typeof window !== 'undefined' ? window.location.href : ''}
+                </span>
               </div>
             </div>
           </div>
 
           <div className="bg-white rounded-xl shadow-lg p-8">
-            <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">
-              Players ({players.length}/4)
+            <h2 className="text-2xl font-bold text-center text-gray-800 mb-6 flex items-center justify-center space-x-2">
+              <Users size={24} />
+              <span>Players ({players.length}/2)</span>
             </h2>
             
-            <div className="space-y-3 mb-6">
-              {players.map((player, index) => (
-                <div 
-                  key={index}
-                  className="flex items-center justify-between p-3 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg"
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold ${
-                      index === 0 ? 'bg-purple-500' : 'bg-pink-500'
-                    }`}>
-                      {player.charAt(0).toUpperCase()}
+            {loading ? (
+              <div className="text-center py-8">
+                <div className="text-gray-500">Loading room...</div>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-3 mb-6">
+                  {players.map((player) => (
+                    <div 
+                      key={player.id}
+                      className="flex items-center justify-between p-3 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold ${
+                          player.player_number === 1 ? 'bg-purple-500' : 'bg-pink-500'
+                        }`}>
+                          P{player.player_number}
+                        </div>
+                        <span className="font-medium text-gray-800">
+                          Player {player.player_number}
+                        </span>
+                      </div>
+                      {room?.host_user_id === player.user_id && (
+                        <span className="text-xs bg-purple-100 text-purple-600 px-2 py-1 rounded-full font-medium">
+                          HOST
+                        </span>
+                      )}
                     </div>
-                    <span className="font-medium text-gray-800">{player}</span>
-                  </div>
-                  {index === 0 && (
-                    <span className="text-xs bg-purple-100 text-purple-600 px-2 py-1 rounded-full font-medium">
-                      HOST
-                    </span>
-                  )}
+                  ))}
+                  
+                  {Array.from({ length: 2 - players.length }).map((_, index) => (
+                    <div 
+                      key={`empty-${index}`}
+                      className="flex items-center p-3 border-2 border-dashed border-gray-200 rounded-lg"
+                    >
+                      <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center mr-3">
+                        <span className="text-gray-400 text-sm">?</span>
+                      </div>
+                      <span className="text-gray-400 italic">Waiting for player...</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
-              
-              {Array.from({ length: 4 - players.length }).map((_, index) => (
-                <div 
-                  key={`empty-${index}`}
-                  className="flex items-center p-3 border-2 border-dashed border-gray-200 rounded-lg"
-                >
-                  <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center mr-3">
-                    <span className="text-gray-400 text-sm">?</span>
-                  </div>
-                  <span className="text-gray-400 italic">Waiting for player...</span>
-                </div>
-              ))}
-            </div>
 
-            <div className="text-center">
-              <button 
-                onClick={startGame}
-                className="px-8 py-3 bg-gradient-to-r from-pink-500 to-pink-600 text-white rounded-lg hover:from-pink-600 hover:to-pink-700 transition-all duration-200 font-semibold"
-              >
-                Start Game
-              </button>
-              <p className="text-xs text-gray-500 mt-2">
-                Ready to start! (Single player mode for testing)
-              </p>
-            </div>
+                <div className="text-center">
+                  {isHost ? (
+                    <button 
+                      onClick={startGame}
+                      disabled={players.length < 1}
+                      className="px-8 py-3 bg-gradient-to-r from-pink-500 to-pink-600 text-white rounded-lg hover:from-pink-600 hover:to-pink-700 transition-all duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Start Game
+                    </button>
+                  ) : hasJoined ? (
+                    <div className="text-gray-500">
+                      Waiting for host to start the game...
+                    </div>
+                  ) : (
+                    <button 
+                      onClick={async () => {
+                        if (room) {
+                          const { data: { session } } = await supabase.auth.getSession();
+                          if (session) {
+                            await joinRoom(room.id, session.user.id);
+                            // Force reload players on both screens
+                            await loadPlayers();
+                          }
+                        }
+                      }}
+                      className="px-8 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200 font-semibold"
+                    >
+                      Join Game
+                    </button>
+                  )}
+                  <p className="text-xs text-gray-500 mt-2">
+                    {players.length >= 2 ? 'Ready to start!' : `Need ${2 - players.length} more player(s)`}
+                  </p>
+                </div>
+              </>
+            )}
           </div>
 
           <div className="mt-8 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-6">
