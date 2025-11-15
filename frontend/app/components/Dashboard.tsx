@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Search, Plus, Upload, Grid3x3, Gamepad2, LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import Connect4Loader from './Connect4Loader';
 
 interface FlashcardSet {
   id: number;
@@ -19,6 +20,7 @@ const Dashboard = () => {
   const [showUploadPopup, setShowUploadPopup] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [showLoader, setShowLoader] = useState(true); // Temporarily force to true for testing
 
   const handleLogout = () => {
     localStorage.removeItem('isAuthenticated');
@@ -54,25 +56,69 @@ const Dashboard = () => {
     }
   };
 
-  const createFlashcards = () => {
+  const createFlashcards = async () => {
     if (uploadedFile) {
-      const newSet: FlashcardSet = {
-        id: flashcardSets.length + 1,
-        title: uploadedFile.name.replace('.pdf', ''),
-        cards: Math.floor(Math.random() * 20) + 10,
-        lastStudied: 'Just created',
-        color: 'from-purple-500 to-pink-500'
-      };
+      console.log('Setting showLoader to true');
+      setShowLoader(true);
       
-      setFlashcardSets(prev => [newSet, ...prev]);
-      setShowUploadPopup(false);
-      setUploadedFile(null);
+      try {
+        const formData = new FormData();
+        formData.append('file', uploadedFile);
+        
+        const response = await fetch('http://localhost:8000/process-pdf', {
+          method: 'POST',
+          body: formData,
+        });
+        
+        const result = await response.json();
+        
+        // Add minimum display time for loader
+        await new Promise(resolve => setTimeout(resolve, 5000));
+        
+        if (result.status === 'success') {
+          const newSet: FlashcardSet = {
+            id: flashcardSets.length + 1,
+            title: result.title,
+            cards: result.flashcards.length,
+            lastStudied: 'Just created',
+            color: 'from-purple-500 to-pink-500'
+          };
+          
+          setFlashcardSets(prev => [newSet, ...prev]);
+          setShowUploadPopup(false);
+          setUploadedFile(null);
+        } else {
+          alert('Error: ' + result.message);
+        }
+      } catch (error) {
+        console.error('Error creating flashcards:', error);
+        alert('Failed to process PDF. Please try again.');
+      } finally {
+        console.log('Setting showLoader to false');
+        setShowLoader(false);
+      }
     }
   };
 
   const filteredSets = flashcardSets.filter(set =>
     set.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  if (showLoader) {
+    console.log('Showing Connect4Loader');
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-purple-100 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-4">
+            Generating Flashcards
+          </h2>
+          <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+        </div>
+      </div>
+    );
+  }
+  
+  console.log('showLoader is:', showLoader);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-purple-100">
@@ -238,7 +284,10 @@ const Dashboard = () => {
             </div>
 
             <button 
-              onClick={createFlashcards}
+              onClick={() => {
+                alert('Button clicked!');
+                createFlashcards();
+              }}
               disabled={!uploadedFile}
               className="w-full mt-6 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
             >
