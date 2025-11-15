@@ -20,25 +20,134 @@ interface Room {
   deck_id?: number;
 }
 
-export default function Connect4Page({ params }: { params: Promise<{ room: string }> }) {
+interface Connect4PageProps {
+  params: Promise<{ room: string }>;
+}
+
+export default function Connect4Page({ params }: Connect4PageProps) {
   const router = useRouter();
-  const resolvedParams = React.use(params);
+  const [resolvedParams, setResolvedParams] = useState<{ room: string } | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
   const [room, setRoom] = useState<Room | null>(null);
-  const [gameCode] = useState(resolvedParams.room);
   const [gameStarted, setGameStarted] = useState(false);
   const [isHost, setIsHost] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [hasJoined, setHasJoined] = useState(false);
+  const [deckName, setDeckName] = useState<string>('');
   const [board, setBoard] = useState(Array(6).fill(null).map(() => Array(7).fill(null)));
   const [currentPlayer, setCurrentPlayer] = useState(1);
   const [timer, setTimer] = useState(30);
   const [userAnswer, setUserAnswer] = useState('');
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<{text: string, type: 'correct' | 'incorrect' | 'improvement'}[]>([]);
+  
+  const gameCode = resolvedParams?.room || '';
+  
+  useEffect(() => {
+    params.then(setResolvedParams);
+  }, [params]);
 
   useEffect(() => {
-    initializeRoom();
+    if (gameCode) {
+      initializeRoom();
+    }
   }, [gameCode]);
+
+  useEffect(() => {
+    if (!room) return;
+
+    loadPlayers();
+
+    // Subscribe to player changes
+    const playersSubscription = supabase
+      .channel(`room-${room.id}-players`)
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'connect4_players', filter: `room_id=eq.${room.id}` },
+        (payload) => {
+          console.log('Player change detected:', payload);
+          if (payload.eventType === 'DELETE') {
+            // Player left - reload players to update UI
+            loadPlayers();
+            // If game was in progress and a player left, end the game
+            if (gameStarted) {
+              alert('A player has left the game. Returning to home.');
+              router.push('/');
+            }
+          } else {
+            loadPlayers();
+          }
+        }
+      )
+      .on('broadcast', { event: 'player_joined' }, (payload) => {
+        console.log('Player joined broadcast received:', payload);
+        loadPlayers();
+      })
+      .on('broadcast', { event: 'player_left' }, (payload) => {
+        console.log('Player left broadcast received:', payload);
+        loadPlayers();
+        if (gameStarted) {
+          alert('A player has left the game. Returning to home.');
+          router.push('/');
+        }
+      })
+      .subscribe((status) => {
+        console.log('Players subscription status:', status);
+      });
+
+    // Subscribe to room changes
+    const roomSubscription = supabase
+      .channel(`room-${room.id}-status`)
+      .on('postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'connect4_rooms', filter: `id=eq.${room.id}` },
+        (payload) => {
+          console.log('Room status changed:', payload.new);
+          if (payload.new.status === 'playing') {
+            setGameStarted(true);
+          }
+        }
+      )
+      .subscribe();
+
+    // Cleanup function
+    return () => {
+      console.log('Cleaning up subscriptions');
+      playersSubscription.unsubscribe();
+      roomSubscription.unsubscribe();
+    };
+  }, [room, gameStarted]);
+
+  // Cleanup when component unmounts
+  useEffect(() => {
+    const handleBeforeUnload = async () => {
+      if (room && hasJoined) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          await leaveRoom();
+        }
+      }
+    };
+
+    const handleRouteChange = () => {
+      if (room && hasJoined) {
+        leaveRoom();
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      handleRouteChange();
+    };
+  }, [room, hasJoined]);
+
+  if (!resolvedParams) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-purple-100 flex items-center justify-center">
+        <div className="text-lg text-gray-600">Loading...</div>
+      </div>
+    );
+  }
 
   const initializeRoom = async () => {
     try {
@@ -48,22 +157,61 @@ export default function Connect4Page({ params }: { params: Promise<{ room: strin
         return;
       }
 
-      // Check if room exists
-      const { data: existingRoom } = await supabase
+      console.log('User ID:', session.user.id);
+      console.log('Game Code:', gameCode);
+
+      // Check if room exists (use maybeSingle to avoid error on no results)
+      const { data: existingRoom, error: roomError } = await supabase
         .from('connect4_rooms')
         .select('*')
         .eq('room_code', gameCode)
-        .single();
+        .maybeSingle();
+
+      if (roomError) {
+        console.error('Error checking for room:', roomError);
+        return;
+      }
 
       if (existingRoom) {
+        console.log('Found existing room:', existingRoom);
         setRoom(existingRoom);
         setIsHost(existingRoom.host_user_id === session.user.id);
-        await joinRoom(existingRoom.id, session.user.id);
+        
+        // Load deck name if deck_id exists
+        if (existingRoom.deck_id) {
+          console.log('Loading deck for deck_id:', existingRoom.deck_id);
+          const { data: deckData, error: deckError } = await supabase
+            .from('flashcard_sets')
+            .select('title')
+            .eq('id', existingRoom.deck_id)
+            .single();
+          
+          if (deckError) {
+            console.error('Error loading deck:', deckError);
+            setDeckName(`Flashcard Set ${existingRoom.deck_id}`);
+          } else if (deckData) {
+            console.log('Loaded deck name:', deckData.title);
+            setDeckName(deckData.title);
+          }
+        } else {
+          setDeckName(`Room ${gameCode}`);
+        }
+        
+        // Check if user is already in the room
+        const { data: existingPlayer } = await supabase
+          .from('connect4_players')
+          .select('*')
+          .eq('room_id', existingRoom.id)
+          .eq('user_id', session.user.id)
+          .single();
+        
+        if (existingPlayer) {
+          setHasJoined(true);
+        }
       } else {
+        console.log('Room not found, creating new room');
         await createRoom(session.user.id);
       }
-      
-      await loadPlayers();
     } catch (error) {
       console.error('Error initializing room:', error);
     } finally {
@@ -72,69 +220,237 @@ export default function Connect4Page({ params }: { params: Promise<{ room: strin
   };
 
   const createRoom = async (userId: string) => {
-    const { data: newRoom, error } = await supabase
-      .from('connect4_rooms')
-      .insert({
-        room_code: gameCode,
-        host_user_id: userId,
-        status: 'waiting'
-      })
-      .select()
-      .single();
+    try {
+      // Check one more time if room exists (race condition protection)
+      const { data: existingRoom } = await supabase
+        .from('connect4_rooms')
+        .select('*')
+        .eq('room_code', gameCode)
+        .maybeSingle();
 
-    if (error) throw error;
-    
-    setRoom(newRoom);
-    setIsHost(true);
-    
-    await supabase
-      .from('connect4_players')
-      .insert({
-        room_id: newRoom.id,
-        user_id: userId,
-        player_number: 1
-      });
+      if (existingRoom) {
+        console.log('Room already exists, joining instead');
+        setRoom(existingRoom);
+        setIsHost(existingRoom.host_user_id === userId);
+        await joinRoom(existingRoom.id, userId);
+        return;
+      }
+
+      // Get deck ID from URL parameter
+      const urlParams = new URLSearchParams(window.location.search);
+      const deckId = urlParams.get('deck');
+      
+      const { data: newRoom, error } = await supabase
+        .from('connect4_rooms')
+        .insert({
+          room_code: gameCode,
+          host_user_id: userId,
+          status: 'waiting',
+          deck_id: deckId ? parseInt(deckId) : null
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating room:', error);
+        // If duplicate key error, try to join existing room
+        if (error.code === '23505') {
+          const { data: existingRoom } = await supabase
+            .from('connect4_rooms')
+            .select('*')
+            .eq('room_code', gameCode)
+            .single();
+          
+          if (existingRoom) {
+            setRoom(existingRoom);
+            setIsHost(existingRoom.host_user_id === userId);
+            await joinRoom(existingRoom.id, userId);
+            return;
+          }
+        }
+        throw error;
+      }
+      
+      // Host is always Player 1
+      const { error: playerError } = await supabase
+        .from('connect4_players')
+        .insert({
+          room_id: newRoom.id,
+          user_id: userId,
+          player_number: 1
+        });
+
+      if (playerError) {
+        console.error('Error adding host as player:', playerError);
+      }
+
+      setRoom(newRoom);
+      setIsHost(true);
+      setHasJoined(true);
+      
+      // Load deck name after creating room
+      if (deckId) {
+        console.log('Loading deck name for new room, deck_id:', deckId);
+        const { data: deckData, error: deckError } = await supabase
+          .from('flashcard_sets')
+          .select('title')
+          .eq('id', parseInt(deckId))
+          .single();
+        
+        if (deckError) {
+          console.error('Error loading deck for new room:', deckError);
+          setDeckName(`Flashcard Set ${deckId}`);
+        } else if (deckData) {
+          console.log('Loaded deck name for new room:', deckData.title);
+          setDeckName(deckData.title);
+        }
+      } else {
+        setDeckName(`Room ${gameCode}`);
+      }
+      
+      console.log('Room created successfully');
+    } catch (error) {
+      console.error('Error creating room:', error);
+    }
+  };
+
+  const leaveRoom = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session || !room) return;
+
+      console.log('Leaving room:', room.id);
+      
+      // Remove player from room
+      const { error } = await supabase
+        .from('connect4_players')
+        .delete()
+        .eq('room_id', room.id)
+        .eq('user_id', session.user.id);
+
+      if (error) {
+        console.error('Error leaving room:', error);
+      } else {
+        // Broadcast that player left
+        await supabase
+          .channel(`room-${room.id}-players`)
+          .send({
+            type: 'broadcast',
+            event: 'player_left',
+            payload: { user_id: session.user.id }
+          });
+      }
+    } catch (error) {
+      console.error('Error in leaveRoom:', error);
+    }
   };
 
   const joinRoom = async (roomId: string, userId: string) => {
-    const { data: existingPlayer } = await supabase
-      .from('connect4_players')
-      .select('*')
-      .eq('room_id', roomId)
-      .eq('user_id', userId)
-      .single();
+    try {
+      console.log('Attempting to join room:', roomId, 'as user:', userId);
+      
+      // Check if user is already in the room
+      const { data: existingPlayer, error: checkError } = await supabase
+        .from('connect4_players')
+        .select('*')
+        .eq('room_id', roomId)
+        .eq('user_id', userId)
+        .single();
 
-    if (!existingPlayer) {
-      const { data: players } = await supabase
+      if (checkError && checkError.code !== 'PGRST116') {
+        console.error('Error checking existing player:', checkError);
+        return;
+      }
+
+      if (existingPlayer) {
+        console.log('User already in room as player:', existingPlayer.player_number);
+        return;
+      }
+
+      // Get current players to determine next player number
+      const { data: players, error: playersError } = await supabase
         .from('connect4_players')
         .select('player_number')
-        .eq('room_id', roomId);
+        .eq('room_id', roomId)
+        .order('player_number');
 
-      const playerNumber = players?.length === 0 ? 1 : 2;
+      if (playersError) {
+        console.error('Error getting players:', playersError);
+        return;
+      }
+
+      console.log('Current players:', players);
+
+      // Determine player number
+      let playerNumber = 1;
+      if (players && players.length > 0) {
+        const existingNumbers = players.map(p => p.player_number);
+        if (existingNumbers.includes(1)) {
+          playerNumber = 2;
+        }
+      }
+
+      console.log('Assigning player number:', playerNumber);
       
-      if (playerNumber <= 2) {
-        await supabase
+      // Only join if there's space (max 2 players)
+      if (!players || players.length < 2) {
+        const { error } = await supabase
           .from('connect4_players')
           .insert({
             room_id: roomId,
             user_id: userId,
             player_number: playerNumber
           });
+
+        if (error) {
+          console.error('Error inserting player:', error);
+        } else {
+          console.log('Successfully joined as player', playerNumber);
+          setHasJoined(true);
+          // Immediately reload players after joining
+          await loadPlayers();
+          
+          // Trigger reload on all other clients by sending a custom event
+          const triggerChannel = supabase.channel(`room-${roomId}-players`);
+          await triggerChannel.send({
+            type: 'broadcast',
+            event: 'player_joined',
+            payload: { player_number: playerNumber }
+          });
+        }
+      } else {
+        console.log('Room is full, cannot join');
       }
+    } catch (error) {
+      console.error('Error in joinRoom:', error);
     }
   };
 
   const loadPlayers = async () => {
-    if (!room) return;
+    if (!room) {
+      console.log('No room available for loading players');
+      return;
+    }
     
-    const { data: playersData } = await supabase
-      .from('connect4_players')
-      .select('*')
-      .eq('room_id', room.id)
-      .order('player_number');
+    try {
+      console.log('Loading players for room:', room.id);
+      const { data: playersData, error } = await supabase
+        .from('connect4_players')
+        .select('*')
+        .eq('room_id', room.id)
+        .order('player_number');
 
-    if (playersData) {
-      setPlayers(playersData);
+      if (error) {
+        console.error('Error loading players:', error);
+        return;
+      }
+
+      console.log('Loaded players:', playersData);
+      if (playersData) {
+        setPlayers(playersData);
+      }
+    } catch (error) {
+      console.error('Error in loadPlayers:', error);
     }
   };
 
@@ -143,29 +459,56 @@ export default function Connect4Page({ params }: { params: Promise<{ room: strin
     router.push(`/connect4/${newCode}`);
   };
 
-  const copyRoomCode = () => {
-    navigator.clipboard.writeText(gameCode);
+  const copyRoomCode = async () => {
+    try {
+      await navigator.clipboard.writeText(gameCode);
+      // Simple feedback - could add a toast notification here
+      const button = document.querySelector('.copy-button');
+      if (button) {
+        const originalText = button.textContent;
+        button.textContent = 'Copied!';
+        setTimeout(() => {
+          button.textContent = originalText;
+        }, 2000);
+      }
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
   };
 
   const currentQuestion = "What is a Binary Search Tree and how does it maintain its ordering property?";
 
   const startGame = async () => {
-    if (!isHost || !room) return;
+    if (!isHost || !room || players.length < 1) return;
     
-    await supabase
-      .from('connect4_rooms')
-      .update({ status: 'playing' })
-      .eq('id', room.id);
-    
-    await supabase
-      .from('connect4_game_state')
-      .insert({
-        room_id: room.id,
-        current_player: 1
-      });
-    
-    setGameStarted(true);
-    setTimer(30);
+    try {
+      const { error: roomError } = await supabase
+        .from('connect4_rooms')
+        .update({ status: 'playing' })
+        .eq('id', room.id);
+
+      if (roomError) {
+        console.error('Error updating room status:', roomError);
+        return;
+      }
+      
+      const { error: gameError } = await supabase
+        .from('connect4_game_state')
+        .insert({
+          room_id: room.id,
+          current_player: 1
+        });
+
+      if (gameError) {
+        console.error('Error creating game state:', gameError);
+        return;
+      }
+      
+      setGameStarted(true);
+      setTimer(30);
+    } catch (error) {
+      console.error('Error starting game:', error);
+    }
   };
 
   const submitAnswer = () => {
@@ -211,9 +554,18 @@ export default function Connect4Page({ params }: { params: Promise<{ room: strin
             >
               <ArrowLeft size={24} className="text-purple-600" />
             </button>
-            <h1 className="text-3xl font-bold text-gray-800">
-              {gameStarted ? 'Connect4 Game' : 'Connect4 Waiting Room'}
-            </h1>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-800">
+                {gameStarted ? 'Connect4 Game' : 'Connect4 Waiting Room'}
+              </h1>
+              {deckName && (
+                <p className="text-lg text-gray-600 mt-1">
+                  Playing with: {deckName}
+                </p>
+              )}
+              {/* Debug: show deckName state */}
+              {console.log('Current deckName state:', deckName)}
+            </div>
           </div>
           
           {gameStarted && (
@@ -348,7 +700,7 @@ export default function Connect4Page({ params }: { params: Promise<{ room: strin
                 <p className="text-sm text-gray-600">Share this code with friends to join</p>
                 <button 
                   onClick={copyRoomCode}
-                  className="mt-2 px-3 py-1 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors text-sm flex items-center space-x-1 mx-auto"
+                  className="copy-button mt-2 px-3 py-1 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors text-sm flex items-center space-x-1 mx-auto"
                 >
                   <Copy size={14} />
                   <span>Copy Code</span>
@@ -357,15 +709,6 @@ export default function Connect4Page({ params }: { params: Promise<{ room: strin
             </div>
             
             <div className="text-center space-y-4">
-              {isHost && (
-                <button 
-                  onClick={generateNewCode}
-                  className="px-6 py-3 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg hover:from-purple-600 hover:to-purple-700 transition-all duration-200 font-medium"
-                >
-                  Generate New Code
-                </button>
-              )}
-              
               <div className="text-sm text-gray-500">
                 Share this URL: <span className="font-mono bg-gray-100 px-2 py-1 rounded text-xs break-all">
                   {typeof window !== 'undefined' ? window.location.href : ''}
@@ -432,10 +775,26 @@ export default function Connect4Page({ params }: { params: Promise<{ room: strin
                     >
                       Start Game
                     </button>
-                  ) : (
+                  ) : hasJoined ? (
                     <div className="text-gray-500">
                       Waiting for host to start the game...
                     </div>
+                  ) : (
+                    <button 
+                      onClick={async () => {
+                        if (room) {
+                          const { data: { session } } = await supabase.auth.getSession();
+                          if (session) {
+                            await joinRoom(room.id, session.user.id);
+                            // Force reload players on both screens
+                            await loadPlayers();
+                          }
+                        }
+                      }}
+                      className="px-8 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200 font-semibold"
+                    >
+                      Join Game
+                    </button>
                   )}
                   <p className="text-xs text-gray-500 mt-2">
                     {players.length >= 2 ? 'Ready to start!' : `Need ${2 - players.length} more player(s)`}

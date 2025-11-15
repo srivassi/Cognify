@@ -21,6 +21,8 @@ const Dashboard = () => {
   const [dragActive, setDragActive] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showJoinRoomPopup, setShowJoinRoomPopup] = useState(false);
+  const [roomCode, setRoomCode] = useState('');
 
   const [flashcardSets, setFlashcardSets] = useState<FlashcardSet[]>([]);
   
@@ -167,7 +169,10 @@ const Dashboard = () => {
           </div>
           
           <div className="flex items-center space-x-3">
-            <button className="px-5 py-2.5 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg hover:from-purple-600 hover:to-purple-700 transition-all duration-200 flex items-center space-x-2 shadow-md hover:shadow-lg">
+            <button 
+              onClick={() => setShowJoinRoomPopup(true)}
+              className="px-5 py-2.5 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg hover:from-purple-600 hover:to-purple-700 transition-all duration-200 flex items-center space-x-2 shadow-md hover:shadow-lg"
+            >
               <Grid3x3 size={18} />
               <span className="font-medium">Connect 4</span>
             </button>
@@ -343,6 +348,55 @@ const Dashboard = () => {
                 setShowUploadPopup(false);
                 setUploadedFile(null);
                 setDragActive(false);
+              }}
+              className="w-full mt-3 px-6 py-3 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 transition-all duration-200"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Join Room Popup */}
+      {showJoinRoomPopup && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-8 max-w-md w-full mx-4">
+            <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">Join Connect 4 Room</h2>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Room Code
+                </label>
+                <input
+                  type="text"
+                  value={roomCode}
+                  onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+                  placeholder="ABC123"
+                  className="w-full px-4 py-3 bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-300 rounded-lg focus:outline-none focus:border-purple-500 focus:from-purple-100 focus:to-pink-100 transition-all duration-200 text-center text-xl font-bold tracking-widest text-purple-700 placeholder-purple-400"
+                  maxLength={6}
+                />
+              </div>
+            </div>
+
+            <button 
+              onClick={() => {
+                if (roomCode.length === 6) {
+                  router.push(`/connect4/${roomCode}`);
+                } else {
+                  alert('Please enter a valid 6-character room code');
+                }
+              }}
+              disabled={roomCode.length !== 6}
+              className="w-full mt-6 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Join Room
+            </button>
+
+            <button 
+              onClick={() => {
+                setShowJoinRoomPopup(false);
+                setRoomCode('');
               }}
               className="w-full mt-3 px-6 py-3 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 transition-all duration-200"
             >
