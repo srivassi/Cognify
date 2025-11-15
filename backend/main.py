@@ -41,7 +41,9 @@ async def process_pdf(file: UploadFile = File(...)):
             google_api_key=os.getenv("GEMINI_API_KEY")
         )
         
-        prompt = f"""Parse the PDF content and create flashcards. Return JSON array:
+        prompt = f"""# PDF to Flashcard Generator
+Parse through the provided PDF content and produce concise, testable flashcards from their material. Flashcards should be unambiguous and loyal to source material. They should ONLY include information that may be obtained from provided sources. Try to limit one concept per card. If the source material is scarce, prioritize quality over quantity, but in all cases, try to cover as many topics in the source as possible. Do not be overly flamboyant with wording, keep to the essentials. Avoid trick phrasing.
+Response should be given as a JSON array with this exact format:
 [
   {{
     "question": "What is...",
