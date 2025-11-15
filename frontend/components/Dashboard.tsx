@@ -315,37 +315,37 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen pixel-effect retro-ui">
       {/* Header */}
-      <header className="bg-gradient-to-r from-blue-100 to-purple-100 border-b-4 border-white pixel-card">
+      <header className="bg-gradient-to-r from-pink-200 via-purple-200 to-pink-200 border-b-3 border-white pixel-card cute-glow sparkle">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 border-3 border-white flex items-center justify-center soft-glow" style={{borderRadius: '4px'}}>
-              <span className="text-white font-bold text-xl">C</span>
+            <div className="w-12 h-12 bg-gradient-to-br from-pink-500 to-purple-500 border-3 border-white flex items-center justify-center cute-glow sparkle" style={{borderRadius: '8px'}}>
+              <span className="text-white font-bold text-xl">🧠</span>
             </div>
-            <h1 className="text-2xl font-bold text-blue-700 gentle-bounce">
-              Cognify
+            <h1 className="text-2xl font-bold text-purple-700">
+              COGNIFY
             </h1>
           </div>
           
           <div className="flex items-center space-x-3">
             <button 
               onClick={() => setShowJoinRoomPopup(true)}
-              className="px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white pixel-button flex items-center space-x-2 text-sm"
+              className="px-4 py-2 bg-gradient-to-r from-blue-400 to-green-400 text-white pixel-button flex items-center space-x-2 text-xs sparkle"
             >
               <Grid3x3 size={14} />
-              <span>Connect 4</span>
+              <span>CONNECT 4</span>
             </button>
-            <button className="px-4 py-2 bg-gradient-to-r from-green-400 to-emerald-500 text-white pixel-button flex items-center space-x-2 text-sm">
+            <button className="px-4 py-2 bg-gradient-to-r from-pink-400 to-purple-400 text-white pixel-button flex items-center space-x-2 text-xs sparkle">
               <Gamepad2 size={14} />
-              <span>Jeopardy</span>
+              <span>JEOPARDY</span>
             </button>
             <button 
               onClick={async () => {
                 await supabase.auth.signOut();
                 router.push('/auth');
               }}
-              className="px-4 py-2 bg-gradient-to-r from-pink-400 to-purple-500 text-white pixel-button flex items-center space-x-2 text-sm"
+              className="px-4 py-2 bg-gradient-to-r from-gray-400 to-gray-600 text-white pixel-button flex items-center space-x-2 text-sm"
             >
               <LogOut size={14} />
               <span>Sign Out</span>
@@ -356,25 +356,25 @@ const Dashboard = () => {
 
       <div className="flex">
         {/* Left Sidebar */}
-        <aside className="w-72 bg-gradient-to-b from-yellow-100 to-yellow-200 border-r-4 border-white min-h-[calc(100vh-73px)] p-6">
-          <button className="w-full mb-6 px-4 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white pixel-button flex items-center justify-center space-x-2 text-sm">
+        <aside className="w-72 bg-gradient-to-b from-pink-100 via-purple-100 to-pink-100 border-r-3 border-white min-h-[calc(100vh-73px)] p-6 pixel-effect retro-ui">
+          <button className="w-full mb-6 px-4 py-3 bg-gradient-to-r from-pink-400 to-purple-400 text-white pixel-button flex items-center justify-center space-x-2 text-xs sparkle">
             <Plus size={16} />
-            <span>Create New Set</span>
+            <span>NEW SET</span>
           </button>
 
 
 
           <button 
             onClick={() => setShowUploadPopup(true)}
-            className="w-full mb-6 px-4 py-3 border-2 border-dashed border-purple-300 text-purple-600 bg-purple-50 pixel-button flex items-center justify-center space-x-2 text-sm"
+            className="w-full mb-6 px-4 py-3 border-2 border-dashed border-pink-300 text-pink-700 bg-pink-100 pixel-button flex items-center justify-center space-x-2 text-xs"
             disabled={isProcessing}
           >
             <Upload size={16} />
-            <span>{isProcessing ? 'Processing...' : 'Upload PDF'}</span>
+            <span>{isProcessing ? 'PROCESSING...' : 'UPLOAD PDF'}</span>
           </button>
 
           <div className="mb-4">
-            <h2 className="text-sm font-semibold text-blue-700 mb-3">Your Study Sets</h2>
+            <h2 className="text-xs font-bold text-purple-700 mb-3 uppercase">YOUR STUDY SETS</h2>
           </div>
 
           <div className="space-y-2">
@@ -382,9 +382,9 @@ const Dashboard = () => {
               <div key={set.id} className="group relative">
                 <button
                   onClick={() => router.push(`/deck/${set.id}`)}
-                  className="w-full text-left px-4 py-3 bg-white border-3 border-blue-200 pixel-button text-xs"
+                  className="w-full text-left px-4 py-3 bg-gradient-to-r from-pink-50 to-white border-2 border-pink-300 pixel-button text-xs"
                 >
-                  <div className="text-blue-800 mb-1">{set.title}</div>
+                  <div className="text-pink-800 mb-1 uppercase">{set.title}</div>
                   <div className="text-purple-600">{set.cards} CARDS</div>
                 </button>
                 <button
@@ -421,15 +421,16 @@ const Dashboard = () => {
 
             {/* Flashcard Sets Grid */}
             <div>
-              <h2 className="text-2xl font-bold text-blue-800 mb-6">Your Flashcard Sets</h2>
+              <h2 className="text-xl font-bold text-purple-700 mb-6 uppercase">YOUR FLASHCARD SETS</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredSets.map(set => (
                   <div key={set.id} className="group relative">
                     <div
                       onClick={() => router.push(`/deck/${set.id}`)}
                       className="pixel-card overflow-hidden cursor-pointer gentle-bounce"
+                      style={{borderRadius: '20px'}}
                     >
-                      <div className={`h-32 bg-gradient-to-br ${set.color} p-6 flex items-center justify-center border-b-3 border-white`}>
+                      <div className={`h-32 bg-gradient-to-br ${set.color} p-6 flex items-center justify-center border-b-3 border-white`} style={{borderRadius: '20px 20px 0 0'}}>
                         <h3 className="text-white font-bold text-center text-xs uppercase">{set.title}</h3>
                       </div>
                       <div className="p-5 bg-gradient-to-b from-white to-purple-50">

@@ -449,24 +449,25 @@ export default function Connect4Page({ params }: Connect4PageProps) {
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-purple-100">
       <div className="max-w-6xl mx-auto p-8">
         <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center">
-            <button 
-              onClick={() => router.push('/')}
-              className="mr-4 p-2 hover:bg-purple-100 rounded-lg transition-colors"
-            >
-              <ArrowLeft size={24} className="text-purple-600" />
-            </button>
-            <div>
-              <h1 className="text-3xl font-bold text-gray-800">
-                {gameStarted ? 'Connect4 Game' : 'Connect4 Waiting Room'}
-              </h1>
-              {deckName && (
-                <p className="text-lg text-gray-600 mt-1">
-                  Playing with: {deckName}
-                </p>
-              )}
-            </div>
+          <button 
+            onClick={() => router.push('/')}
+            className="p-2 hover:bg-purple-100 rounded-lg transition-colors"
+          >
+            <ArrowLeft size={24} className="text-purple-600" />
+          </button>
+          
+          <div className="flex-1 text-center">
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 via-pink-600 to-purple-600 bg-clip-text text-transparent">
+              {gameStarted ? 'Connect4 Game' : 'Connect4 Waiting Room'}
+            </h1>
+            {deckName && (
+              <p className="text-lg text-gray-600 mt-2 font-medium">
+                Playing with: {deckName}
+              </p>
+            )}
           </div>
+          
+          <div className="w-12"></div>
           
           {gameStarted && (
             <div className="flex items-center space-x-6">
@@ -589,130 +590,132 @@ export default function Connect4Page({ params }: Connect4PageProps) {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div className="bg-white rounded-xl shadow-lg p-8">
-            <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">Game Code</h2>
-            <div className="bg-gradient-to-r from-purple-100 to-pink-100 rounded-lg p-6 mb-6">
-              <div className="text-center">
-                <div className="text-4xl font-bold text-purple-600 tracking-widest mb-2">
-                  {gameCode}
-                </div>
-                <p className="text-sm text-gray-600">Share this code with friends to join</p>
-                <button 
-                  onClick={copyRoomCode}
-                  className="copy-button mt-2 px-3 py-1 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors text-sm flex items-center space-x-1 mx-auto"
-                >
-                  <Copy size={14} />
-                  <span>Copy Code</span>
-                </button>
-              </div>
-            </div>
-            
-            <div className="text-center space-y-4">
-              <div className="text-sm text-gray-500">
-                Share this URL: <span className="font-mono bg-gray-100 px-2 py-1 rounded text-xs break-all">
-                  {typeof window !== 'undefined' ? window.location.href : ''}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-lg p-8">
-            <h2 className="text-2xl font-bold text-center text-gray-800 mb-6 flex items-center justify-center space-x-2">
-              <Users size={24} />
-              <span>Players ({players.length}/2)</span>
-            </h2>
-            
-            {loading ? (
-              <div className="text-center py-8">
-                <div className="text-gray-500">Loading room...</div>
-              </div>
-            ) : (
-              <>
-                <div className="space-y-3 mb-6">
-                  {players.map((player) => (
-                    <div 
-                      key={player.id}
-                      className="flex items-center justify-between p-3 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg"
+          <div className="space-y-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="bg-white rounded-xl shadow-lg p-8">
+                <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">Game Code</h2>
+                <div className="bg-gradient-to-r from-purple-100 to-pink-100 rounded-lg p-6 mb-6">
+                  <div className="text-center">
+                    <div className="text-4xl font-bold text-purple-600 tracking-widest mb-2">
+                      {gameCode}
+                    </div>
+                    <p className="text-sm text-gray-600">Share this code with friends to join</p>
+                    <button 
+                      onClick={copyRoomCode}
+                      className="copy-button mt-2 px-3 py-1 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors text-sm flex items-center space-x-1 mx-auto"
                     >
-                      <div className="flex items-center space-x-3">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold ${
-                          player.player_number === 1 ? 'bg-purple-500' : 'bg-pink-500'
-                        }`}>
-                          P{player.player_number}
+                      <Copy size={14} />
+                      <span>Copy Code</span>
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="text-center space-y-4">
+                  <div className="text-sm text-gray-500">
+                    Share this URL: <span className="font-mono bg-gray-100 px-2 py-1 rounded text-xs break-all">
+                      {typeof window !== 'undefined' ? window.location.href : ''}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl shadow-lg p-8">
+                <h2 className="text-2xl font-bold text-center text-gray-800 mb-6 flex items-center justify-center space-x-2">
+                  <Users size={24} />
+                  <span>Players ({players.length}/2)</span>
+                </h2>
+                
+                {loading ? (
+                  <div className="text-center py-8">
+                    <div className="text-gray-500">Loading room...</div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="space-y-3 mb-6">
+                      {players.map((player) => (
+                        <div 
+                          key={player.id}
+                          className="flex items-center justify-between p-3 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg"
+                        >
+                          <div className="flex items-center space-x-3">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold ${
+                              player.player_number === 1 ? 'bg-purple-500' : 'bg-pink-500'
+                            }`}>
+                              P{player.player_number}
+                            </div>
+                            <span className="font-medium text-gray-800">
+                              Player {player.player_number}
+                            </span>
+                          </div>
+                          {room?.host_user_id === player.user_id && (
+                            <span className="text-xs bg-purple-100 text-purple-600 px-2 py-1 rounded-full font-medium">
+                              HOST
+                            </span>
+                          )}
                         </div>
-                        <span className="font-medium text-gray-800">
-                          Player {player.player_number}
-                        </span>
-                      </div>
-                      {room?.host_user_id === player.user_id && (
-                        <span className="text-xs bg-purple-100 text-purple-600 px-2 py-1 rounded-full font-medium">
-                          HOST
-                        </span>
+                      ))}
+                      
+                      {Array.from({ length: 2 - players.length }).map((_, index) => (
+                        <div 
+                          key={`empty-${index}`}
+                          className="flex items-center p-3 border-2 border-dashed border-gray-200 rounded-lg"
+                        >
+                          <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center mr-3">
+                            <span className="text-gray-400 text-sm">?</span>
+                          </div>
+                          <span className="text-gray-400 italic">Waiting for player...</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="text-center">
+                      {isHost ? (
+                        <button 
+                          onClick={startGame}
+                          disabled={players.length < 1}
+                          className="px-8 py-3 bg-gradient-to-r from-pink-500 to-pink-600 text-white rounded-lg hover:from-pink-600 hover:to-pink-700 transition-all duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Start Game
+                        </button>
+                      ) : hasJoined ? (
+                        <div className="text-gray-500">
+                          Waiting for host to start the game...
+                        </div>
+                      ) : (
+                        <button 
+                          onClick={async () => {
+                            if (room) {
+                              const { data: { session } } = await supabase.auth.getSession();
+                              if (session) {
+                                await joinRoom(room.id, session.user.id);
+                                // Force reload players on both screens
+                                await loadPlayers();
+                              }
+                            }
+                          }}
+                          className="px-8 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200 font-semibold"
+                        >
+                          Join Game
+                        </button>
                       )}
+                      <p className="text-xs text-gray-500 mt-2">
+                        {players.length >= 2 ? 'Ready to start!' : `Need ${2 - players.length} more player(s)`}
+                      </p>
                     </div>
-                  ))}
-                  
-                  {Array.from({ length: 2 - players.length }).map((_, index) => (
-                    <div 
-                      key={`empty-${index}`}
-                      className="flex items-center p-3 border-2 border-dashed border-gray-200 rounded-lg"
-                    >
-                      <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center mr-3">
-                        <span className="text-gray-400 text-sm">?</span>
-                      </div>
-                      <span className="text-gray-400 italic">Waiting for player...</span>
-                    </div>
-                  ))}
-                </div>
+                  </>
+                )}
+              </div>
+            </div>
 
-                <div className="text-center">
-                  {isHost ? (
-                    <button 
-                      onClick={startGame}
-                      disabled={players.length < 1}
-                      className="px-8 py-3 bg-gradient-to-r from-pink-500 to-pink-600 text-white rounded-lg hover:from-pink-600 hover:to-pink-700 transition-all duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Start Game
-                    </button>
-                  ) : hasJoined ? (
-                    <div className="text-gray-500">
-                      Waiting for host to start the game...
-                    </div>
-                  ) : (
-                    <button 
-                      onClick={async () => {
-                        if (room) {
-                          const { data: { session } } = await supabase.auth.getSession();
-                          if (session) {
-                            await joinRoom(room.id, session.user.id);
-                            // Force reload players on both screens
-                            await loadPlayers();
-                          }
-                        }
-                      }}
-                      className="px-8 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200 font-semibold"
-                    >
-                      Join Game
-                    </button>
-                  )}
-                  <p className="text-xs text-gray-500 mt-2">
-                    {players.length >= 2 ? 'Ready to start!' : `Need ${2 - players.length} more player(s)`}
-                  </p>
-                </div>
-              </>
-            )}
-          </div>
-
-          <div className="mt-8 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-3">How to Play Connect4 with Flashcards:</h3>
-            <ul className="text-sm text-gray-600 space-y-1">
-              <li>• Players take turns answering flashcard questions</li>
-              <li>• Correct answers let you drop a piece in Connect4</li>
-              <li>• First to get 4 in a row (horizontal, vertical, or diagonal) wins!</li>
-              <li>• Wrong answers give the turn to the next player</li>
-            </ul>
-          </div>
+            <div className="hanging-sign">
+              <h3 className="text-lg font-bold text-center text-gray-700 mb-4 uppercase tracking-wide">How to Play</h3>
+              <ul className="text-sm text-gray-600 space-y-2 font-medium text-center">
+                <li>Players take turns answering flashcard questions</li>
+                <li>Correct answers let you drop a piece in Connect4</li>
+                <li>First to get 4 in a row wins the game!</li>
+                <li>Wrong answers give the turn to the next player</li>
+              </ul>
+            </div>
           </div>
         )}
       </div>
