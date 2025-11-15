@@ -94,42 +94,42 @@ export default function JeopardyPage({ params }: { params: Promise<{ deck: strin
           </div>
         </div>
 
-        {selectedJeopardyCard ? (
-          <div className="fixed inset-0 flex items-center justify-center z-40">
-            <div className="pixel-card p-8 max-w-4xl w-full mx-8 max-h-[90vh] overflow-auto">
-              <div className="text-center mb-8">
-                <div className="text-xl font-bold text-purple-600 mb-6 uppercase">
+        {selectedJeopardyCard && (
+          <div className="fixed inset-0 flex items-center justify-center z-40 pointer-events-none">
+            <div className="pixel-card p-6 max-w-2xl w-full mx-8 pointer-events-auto">
+              <div className="text-center mb-6">
+                <div className="text-lg font-bold text-purple-600 mb-4 uppercase">
                   {selectedJeopardyCard.points} POINTS - {selectedJeopardyCard.difficulty.toUpperCase()}
                 </div>
                 
                 <div 
-                  className="bg-gradient-to-br from-purple-50 to-pink-50 pixel-card p-12 min-h-80 flex items-center justify-center cursor-pointer mb-8"
+                  className="bg-gradient-to-br from-purple-50 to-pink-50 pixel-card p-8 min-h-48 flex items-center justify-center cursor-pointer mb-6"
                   onClick={() => setShowAnswer(!showAnswer)}
                 >
                   <div className="text-center">
-                    <h3 className="text-2xl font-bold text-gray-800 mb-6 uppercase">
+                    <h3 className="text-xl font-bold text-gray-800 mb-4 uppercase">
                       {showAnswer ? 'ANSWER:' : 'QUESTION:'}
                     </h3>
-                    <p className="text-lg text-gray-700 leading-relaxed">
+                    <p className="text-base text-gray-700 leading-relaxed">
                       {showAnswer ? selectedJeopardyCard.answer : selectedJeopardyCard.question}
                     </p>
                     {!showAnswer && (
-                      <p className="text-sm text-gray-500 mt-6 uppercase">CLICK TO REVEAL ANSWER</p>
+                      <p className="text-sm text-gray-500 mt-4 uppercase">CLICK TO REVEAL ANSWER</p>
                     )}
                   </div>
                 </div>
 
                 {showAnswer && (
-                  <div className="flex justify-center space-x-6">
+                  <div className="flex justify-center space-x-4">
                     <button 
                       onClick={() => handleAnswer(true)}
-                      className="px-8 py-4 bg-gradient-to-r from-green-500 to-green-600 text-white pixel-button text-base"
+                      className="px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white pixel-button text-sm"
                     >
                       CORRECT (+{selectedJeopardyCard.points})
                     </button>
                     <button 
                       onClick={() => handleAnswer(false)}
-                      className="px-8 py-4 bg-gradient-to-r from-red-500 to-red-600 text-white pixel-button text-base"
+                      className="px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white pixel-button text-sm"
                     >
                       INCORRECT
                     </button>
@@ -138,9 +138,9 @@ export default function JeopardyPage({ params }: { params: Promise<{ deck: strin
               </div>
             </div>
           </div>
-        ) : null}
+        )}
         
-        {!selectedJeopardyCard && (
+        <div className={selectedJeopardyCard ? 'opacity-30' : ''}>
           <div className="flex-1 flex items-center justify-center">
             <div className="space-y-8 w-full max-w-7xl px-2" style={{marginLeft: '-8rem'}}>
               {/* Header row with topics */}
@@ -155,7 +155,7 @@ export default function JeopardyPage({ params }: { params: Promise<{ deck: strin
               
               {/* Rows with difficulty labels and cards */}
               {difficulties.map((difficulty, diffIndex) => (
-                <div key={difficulty} className="grid grid-cols-4 gap-4">
+                <div key={difficulty} className="grid grid-cols-4" style={{gap: '8rem'}}>
                   {/* Difficulty label */}
                   <div className="flex items-center justify-center">
                     <h3 className="text-sm font-bold text-blue-800 uppercase">
@@ -175,7 +175,7 @@ export default function JeopardyPage({ params }: { params: Promise<{ deck: strin
                         key={card.id}
                         onClick={() => setSelectedJeopardyCard(card)}
                         disabled={card.answered}
-                        className={`h-40 w-56 pixel-button font-bold text-lg jeopardy-card ${
+                        className={`h-36 w-52 pixel-button font-bold text-base jeopardy-card ${
                           card.answered
                             ? 'cursor-not-allowed answered'
                             : difficulty === 'Easy'
@@ -200,7 +200,7 @@ export default function JeopardyPage({ params }: { params: Promise<{ deck: strin
               ))}
             </div>
           </div>
-        )}
+        </div>
         
         {/* Score Animation Overlay */}
         {scoreAnimation.show && (
