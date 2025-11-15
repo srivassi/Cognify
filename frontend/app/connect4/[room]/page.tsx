@@ -347,8 +347,7 @@ export default function Connect4Page({ params }: Connect4PageProps) {
           }, 100);
         }
       })
-      .on('broadcast', { event: 'coin_dropped' }, (payload) => {
-        console.log('Coin dropped broadcast received - resetting coin drop state');
+      .on('broadcast', { event: 'coin_dropped' }, () => {
         setWaitingForCoinDrop(false);
         setCanDropCoin(false);
       })
@@ -944,7 +943,7 @@ export default function Connect4Page({ params }: Connect4PageProps) {
         await channelRef.current?.send({
           type: 'broadcast',
           event: 'coin_dropped',
-          payload: { hasWinner: !!winner }
+          payload: {}
         });
         
         if (!winner) {
