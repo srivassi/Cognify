@@ -1,0 +1,22 @@
+# pdf to flashcard : (input is pdf)
+parse through the provided pdfs and produce concise, testable flashcards from
+their material. flashcards should be unambiguous and loyal to source material. they 
+should ONLY include information that may be obtained from provided sources. try to limit 
+one concept per card. if the source material is scare, prioritise quality over
+quantity, but in all cases, try to cover as many topics in the source as possible. do not
+be overly flamboyant with wording, keep to the essentials. avoid trick phrasing.
+response should be given via json file
+
+# flashcard deck to jeopardy : (input is json file)
+use the provided flashcard deck to create a series of jeopardy-style questions grouped into
+difficulties : easy, medium, and hard, with correct answers awarding the user (respectively) 
+100, 200, and 500 points. questions should be answerable
+from deck content ONLY, not relying on outside material. be unambiguous and avoid 
+overly decorative language. also avoid trick phrasing unless explicitly requested. structure
+of questions should be in class jeopardy style, eg, Q: "this is the first president of america", A:
+"who is george washington?". response should be given via json file
+
+# monkeytype accuracy score : (input is json file of flashcards and langchain)
+please compute the percentage accuracy of user during the provided typing session using
+the following rubric : (correct answers / total answers) x 100. do not penalise user for common
+typing errors, eg, computer vs cmputer, or case errors. response should be in json file
