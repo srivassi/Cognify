@@ -307,28 +307,35 @@ export default function Connect4Page({ params }: Connect4PageProps) {
               
               if (winner) {
                 setTimeout(async () => {
+                  console.log('Broadcasting coin_drop_wait for winner (from freeze handler):', winner);
                   await channelRef.current?.send({
                     type: 'broadcast',
                     event: 'coin_drop_wait',
                     payload: { winner }
                   });
                 }, 3000);
+              } else {
+                setTimeout(() => nextQuestion(), 3000);
               }
             } catch (error) {
               console.error('Scoring API failed:', error);
               // Fallback: Show dummy results to unfreeze game
-              await channelRef.current?.send({
-                type: 'broadcast',
-                event: 'scoring_update',
-                payload: {
-                  player1Score: 50,
-                  player2Score: 50,
-                  player1Analysis: [{text: 'API Error', type: 'error'}],
-                  player2Analysis: [{text: 'API Error', type: 'error'}],
-                  roundWinner: null,
-                  currentQuestion: currentQuestion
-                }
-              });
+              try {
+                await channelRef.current?.send({
+                  type: 'broadcast',
+                  event: 'scoring_update',
+                  payload: {
+                    player1Score: 50,
+                    player2Score: 50,
+                    player1Analysis: [{text: 'API Error', type: 'error'}],
+                    player2Analysis: [{text: 'API Error', type: 'error'}],
+                    roundWinner: null,
+                    currentQuestion: currentQuestion
+                  }
+                });
+              } catch (broadcastError) {
+                console.error('Failed to send fallback broadcast:', broadcastError);
+              }
             }
           }, 100);
         }
@@ -837,26 +844,24 @@ export default function Connect4Page({ params }: Connect4PageProps) {
         });
         
         // Broadcast to ALL players using the same channel
-        await supabase
-          .channel(`room-${room.id}-players`)
-          .send({
-            type: 'broadcast',
-            event: 'scoring_update',
-            payload: {
-              player1Score: result.player1_score,
-              player2Score: result.player2_score,
-              player1Analysis: result.player1_analysis,
-              player2Analysis: result.player2_analysis,
-              roundWinner: winner,
-              currentQuestion: currentQuestion
-            }
-          });
+        await channelRef.current?.send({
+          type: 'broadcast',
+          event: 'scoring_update',
+          payload: {
+            player1Score: result.player1_score,
+            player2Score: result.player2_score,
+            player1Analysis: result.player1_analysis,
+            player2Analysis: result.player2_analysis,
+            roundWinner: winner,
+            currentQuestion: currentQuestion
+          }
+        });
         
         // Broadcast coin drop wait state
         if (winner) {
           setTimeout(async () => {
-            const channel = supabase.channel(`room-${room.id}-players`);
-            await channel.send({
+            console.log('Broadcasting coin_drop_wait for winner (from submitAnswers):', winner);
+            await channelRef.current?.send({
               type: 'broadcast',
               event: 'coin_drop_wait',
               payload: { winner }
