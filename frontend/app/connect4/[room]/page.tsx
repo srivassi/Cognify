@@ -350,6 +350,11 @@ export default function Connect4Page({ params }: Connect4PageProps) {
       .on('broadcast', { event: 'coin_dropped' }, () => {
         setWaitingForCoinDrop(false);
         setCanDropCoin(false);
+        
+        // Host loads next question after coin drop completes
+        if (isHost) {
+          setTimeout(() => nextQuestion(), 2000);
+        }
       })
       .subscribe();
 
@@ -945,10 +950,6 @@ export default function Connect4Page({ params }: Connect4PageProps) {
           event: 'coin_dropped',
           payload: {}
         });
-        
-        if (!winner) {
-          setTimeout(() => nextQuestion(), 2000);
-        }
         
         break;
       }
