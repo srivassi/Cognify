@@ -203,9 +203,18 @@ export default function Connect4Page({ params }: Connect4PageProps) {
           return;
         }
 
+        console.log('Coin drop wait - winner:', w, 'userPlayerNumber:', userPlayerNumber);
         setRoundWinner(w);
         setShowScoring(false);
         setWaitingForCoinDrop(true);
+        
+        // Immediately set coin drop permission for the winner
+        if (userPlayerNumber === w) {
+          console.log('Setting canDropCoin to true for winner');
+          setCanDropCoin(true);
+        } else {
+          setCanDropCoin(false);
+        }
       })
       .on('broadcast', { event: 'timer_stop' }, () => {
         if (timerRef.current) {
@@ -387,11 +396,14 @@ export default function Connect4Page({ params }: Connect4PageProps) {
     getUserInfo();
   }, [players]);
 
-    // Ensure coin-drop eligibility updates even if user info loads later
+  // Ensure coin-drop eligibility updates when any relevant state changes
   useEffect(() => {
-    if (!waitingForCoinDrop || roundWinner == null || userPlayerNumber == null) return;
+    if (!waitingForCoinDrop || roundWinner == null || userPlayerNumber == null) {
+      setCanDropCoin(false);
+      return;
+    }
     const eligible = roundWinner === userPlayerNumber;
-    console.log("Rechecking coin-drop permission:", { roundWinner, userPlayerNumber, eligible });
+    console.log("Rechecking coin-drop permission:", { roundWinner, userPlayerNumber, eligible, waitingForCoinDrop });
     setCanDropCoin(eligible);
   }, [userPlayerNumber, roundWinner, waitingForCoinDrop]);
 
@@ -906,15 +918,41 @@ export default function Connect4Page({ params }: Connect4PageProps) {
   };
   
   const handleColumnClick = async (col: number) => {
-    if (!waitingForCoinDrop || !roundWinner) return;
+    console.log('Column clicked:', col, {
+      waitingForCoinDrop,
+      roundWinner,
+      userPlayerNumber,
+      canDropCoin,
+      columnFull: board[0][col]
+    });
+    
+    if (!waitingForCoinDrop || !roundWinner) {
+      console.log('Not waiting for coin drop or no winner');
+      return;
+    }
     
     // Check if this player is the winner
-    if (roundWinner !== userPlayerNumber) return;
+    if (roundWinner !== userPlayerNumber) {
+      console.log('Player is not the winner');
+      return;
+    }
+    
+    // Check if player can drop coin
+    if (!canDropCoin) {
+      console.log('Player cannot drop coin yet');
+      return;
+    }
     
     // Check if column is full
-    if (board[0][col]) return;
-    
+    if (board[0][col]) {
+      console.log('Column is full');
+      return;
+    }
+
     console.log('Player', userPlayerNumber, 'dropping coin in column', col);
+    
+    // Immediately disable further drops
+    setCanDropCoin(false);
     
     // Broadcast coin drop to all players
     await supabase
