@@ -315,15 +315,15 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-purple-100">
+    <div className="min-h-screen">
       {/* Header */}
-      <header className="bg-white border-b border-purple-100 shadow-sm">
+      <header className="bg-gradient-to-r from-blue-100 to-purple-100 border-b-4 border-white pixel-card">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
+            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 border-3 border-white flex items-center justify-center soft-glow" style={{borderRadius: '4px'}}>
               <span className="text-white font-bold text-xl">C</span>
             </div>
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+            <h1 className="text-2xl font-bold text-blue-700 gentle-bounce">
               Cognify
             </h1>
           </div>
@@ -331,24 +331,24 @@ const Dashboard = () => {
           <div className="flex items-center space-x-3">
             <button 
               onClick={() => setShowJoinRoomPopup(true)}
-              className="px-5 py-2.5 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg hover:from-purple-600 hover:to-purple-700 transition-all duration-200 flex items-center space-x-2 shadow-md hover:shadow-lg"
+              className="px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white pixel-button flex items-center space-x-2 text-sm"
             >
-              <Grid3x3 size={18} />
-              <span className="font-medium">Connect 4</span>
+              <Grid3x3 size={14} />
+              <span>Connect 4</span>
             </button>
-            <button className="px-5 py-2.5 bg-gradient-to-r from-pink-500 to-pink-600 text-white rounded-lg hover:from-pink-600 hover:to-pink-700 transition-all duration-200 flex items-center space-x-2 shadow-md hover:shadow-lg">
-              <Gamepad2 size={18} />
-              <span className="font-medium">Jeopardy</span>
+            <button className="px-4 py-2 bg-gradient-to-r from-green-400 to-emerald-500 text-white pixel-button flex items-center space-x-2 text-sm">
+              <Gamepad2 size={14} />
+              <span>Jeopardy</span>
             </button>
             <button 
               onClick={async () => {
                 await supabase.auth.signOut();
                 router.push('/auth');
               }}
-              className="px-5 py-2.5 bg-gradient-to-r from-gray-500 to-gray-600 text-white rounded-lg hover:from-gray-600 hover:to-gray-700 transition-all duration-200 flex items-center space-x-2 shadow-md hover:shadow-lg"
+              className="px-4 py-2 bg-gradient-to-r from-pink-400 to-purple-500 text-white pixel-button flex items-center space-x-2 text-sm"
             >
-              <LogOut size={18} />
-              <span className="font-medium">Logout</span>
+              <LogOut size={14} />
+              <span>Sign Out</span>
             </button>
           </div>
         </div>
@@ -356,25 +356,25 @@ const Dashboard = () => {
 
       <div className="flex">
         {/* Left Sidebar */}
-        <aside className="w-72 bg-white border-r border-purple-100 min-h-[calc(100vh-73px)] p-6">
-          <button className="w-full mb-6 px-4 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all duration-200 flex items-center justify-center space-x-2 shadow-md hover:shadow-lg">
-            <Plus size={20} />
-            <span className="font-semibold">Create New Set</span>
+        <aside className="w-72 bg-gradient-to-b from-yellow-100 to-yellow-200 border-r-4 border-white min-h-[calc(100vh-73px)] p-6">
+          <button className="w-full mb-6 px-4 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white pixel-button flex items-center justify-center space-x-2 text-sm">
+            <Plus size={16} />
+            <span>Create New Set</span>
           </button>
 
 
 
           <button 
             onClick={() => setShowUploadPopup(true)}
-            className="w-full mb-6 px-4 py-3 border-2 border-dashed border-purple-300 text-purple-600 rounded-lg hover:border-purple-400 hover:bg-purple-50 transition-all duration-200 flex items-center justify-center space-x-2"
+            className="w-full mb-6 px-4 py-3 border-2 border-dashed border-purple-300 text-purple-600 bg-purple-50 pixel-button flex items-center justify-center space-x-2 text-sm"
             disabled={isProcessing}
           >
-            <Upload size={20} />
-            <span className="font-semibold">{isProcessing ? 'Processing...' : 'Upload PDF'}</span>
+            <Upload size={16} />
+            <span>{isProcessing ? 'Processing...' : 'Upload PDF'}</span>
           </button>
 
           <div className="mb-4">
-            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Your Sets</h2>
+            <h2 className="text-sm font-semibold text-blue-700 mb-3">Your Study Sets</h2>
           </div>
 
           <div className="space-y-2">
@@ -382,10 +382,10 @@ const Dashboard = () => {
               <div key={set.id} className="group relative">
                 <button
                   onClick={() => router.push(`/deck/${set.id}`)}
-                  className="w-full text-left px-4 py-3 rounded-lg transition-all duration-200 hover:bg-purple-50 border-2 border-transparent hover:border-purple-300"
+                  className="w-full text-left px-4 py-3 bg-white border-3 border-blue-200 pixel-button text-xs"
                 >
-                  <div className="font-medium text-gray-800 mb-1">{set.title}</div>
-                  <div className="text-sm text-gray-500">{set.cards} cards</div>
+                  <div className="text-blue-800 mb-1">{set.title}</div>
+                  <div className="text-purple-600">{set.cards} CARDS</div>
                 </button>
                 <button
                   onClick={(e) => {
@@ -414,31 +414,31 @@ const Dashboard = () => {
                   placeholder="Search your flashcard sets..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 bg-white border-2 border-purple-200 rounded-lg focus:outline-none focus:border-purple-400 transition-colors duration-200 shadow-sm text-gray-900"
+                  className="w-full pl-12 pr-4 py-3 pixel-input focus:outline-none text-xs"
                 />
               </div>
             </div>
 
             {/* Flashcard Sets Grid */}
             <div>
-              <h2 className="text-2xl font-bold text-gray-800 mb-6">Your Flashcard Sets</h2>
+              <h2 className="text-2xl font-bold text-blue-800 mb-6">Your Flashcard Sets</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredSets.map(set => (
                   <div key={set.id} className="group relative">
                     <div
                       onClick={() => router.push(`/deck/${set.id}`)}
-                      className="bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden cursor-pointer transform hover:-translate-y-1"
+                      className="pixel-card overflow-hidden cursor-pointer gentle-bounce"
                     >
-                      <div className={`h-32 bg-gradient-to-br ${set.color} p-6 flex items-center justify-center`}>
-                        <h3 className="text-white font-bold text-xl text-center">{set.title}</h3>
+                      <div className={`h-32 bg-gradient-to-br ${set.color} p-6 flex items-center justify-center border-b-3 border-white`}>
+                        <h3 className="text-white font-bold text-center text-xs uppercase">{set.title}</h3>
                       </div>
-                      <div className="p-5">
+                      <div className="p-5 bg-gradient-to-b from-white to-purple-50">
                         <div className="flex items-baseline space-x-2 mb-3">
                           <span className="text-2xl font-bold text-purple-600">{set.cards}</span>
-                          <span className="text-sm text-gray-500">cards</span>
+                          <span className="text-xs text-purple-500 uppercase">CARDS</span>
                         </div>
-                        <div className="text-sm text-gray-500">
-                          Last studied: {set.lastStudied}
+                        <div className="text-xs text-purple-500 uppercase">
+                          LAST STUDIED: {set.lastStudied}
                         </div>
                       </div>
                     </div>
@@ -475,7 +475,7 @@ const Dashboard = () => {
       {showUploadPopup && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-8 max-w-md w-full mx-4">
-            <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">Upload PDF</h2>
+            <h2 className="text-2xl font-bold text-purple-800 mb-6 text-center">Upload Your PDF</h2>
             
             <div 
               className={`border-2 border-dashed rounded-lg p-8 text-center transition-all duration-200 ${
@@ -521,7 +521,7 @@ const Dashboard = () => {
             <button 
               onClick={createFlashcards}
               disabled={!uploadedFile || isProcessing}
-              className="w-full mt-6 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full mt-6 px-6 py-3 bg-gradient-to-r from-green-400 to-emerald-400 text-white pixel-button text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isProcessing ? 'Processing...' : 'Create Flashcards'}
             </button>
@@ -532,7 +532,7 @@ const Dashboard = () => {
                 setUploadedFile(null);
                 setDragActive(false);
               }}
-              className="w-full mt-3 px-6 py-3 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 transition-all duration-200"
+              className="w-full mt-3 px-6 py-3 bg-gradient-to-r from-red-300 to-pink-300 text-white pixel-button text-sm"
             >
               Cancel
             </button>
@@ -544,7 +544,7 @@ const Dashboard = () => {
       {showJoinRoomPopup && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-8 max-w-md w-full mx-4">
-            <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">Join Connect 4 Room</h2>
+            <h2 className="text-2xl font-bold text-purple-800 mb-6 text-center">Join Connect 4 Room</h2>
             
             <div className="space-y-4">
               <div>
@@ -556,7 +556,7 @@ const Dashboard = () => {
                   value={roomCode}
                   onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
                   placeholder="ABC123"
-                  className="w-full px-4 py-3 bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-300 rounded-lg focus:outline-none focus:border-purple-500 focus:from-purple-100 focus:to-pink-100 transition-all duration-200 text-center text-xl font-bold tracking-widest text-purple-700 placeholder-purple-400"
+                  className="w-full px-4 py-3 bg-gradient-to-r from-purple-50 to-pink-50 pixel-input focus:outline-none text-center text-xl font-bold tracking-widest text-purple-700 placeholder-purple-400"
                   maxLength={6}
                 />
               </div>
@@ -571,7 +571,7 @@ const Dashboard = () => {
                 }
               }}
               disabled={roomCode.length !== 6}
-              className="w-full mt-6 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full mt-6 px-6 py-3 bg-gradient-to-r from-blue-400 to-cyan-400 text-white pixel-button text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Join Room
             </button>
@@ -581,7 +581,7 @@ const Dashboard = () => {
                 setShowJoinRoomPopup(false);
                 setRoomCode('');
               }}
-              className="w-full mt-3 px-6 py-3 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 transition-all duration-200"
+              className="w-full mt-3 px-6 py-3 bg-gradient-to-r from-red-300 to-pink-300 text-white pixel-button text-sm"
             >
               Cancel
             </button>
@@ -598,11 +598,11 @@ const Dashboard = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h3 className="text-xl font-bold text-gray-800 mb-2">Success!</h3>
+            <h3 className="text-2xl font-bold text-green-800 mb-2">Success!</h3>
             <p className="text-gray-600 mb-6">{successMessage}</p>
             <button 
               onClick={() => setShowSuccessModal(false)}
-              className="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all duration-200 font-semibold"
+              className="px-6 py-3 bg-gradient-to-r from-green-400 to-emerald-400 text-white pixel-button text-sm"
             >
               Continue
             </button>
@@ -629,13 +629,13 @@ const Dashboard = () => {
                   setShowDeleteModal(false);
                   setSetToDelete(null);
                 }}
-                className="flex-1 px-4 py-3 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 transition-all duration-200 font-medium"
+                className="flex-1 px-4 py-3 bg-gradient-to-r from-gray-300 to-gray-400 text-white pixel-button text-sm"
               >
                 Cancel
               </button>
               <button 
                 onClick={deleteSet}
-                className="flex-1 px-4 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all duration-200 font-medium"
+                className="flex-1 px-4 py-3 bg-gradient-to-r from-red-400 to-pink-400 text-white pixel-button text-sm"
               >
                 Delete
               </button>

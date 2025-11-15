@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap');
 @import "tailwindcss";
 @tailwind base;
 @tailwind components;
@@ -5,7 +6,7 @@
 
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #374151;
 }
 
 @theme inline {
@@ -17,15 +18,54 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #f8fafc;
+    --foreground: #374151;
   }
 }
 
 body {
-  background: var(--background);
+  background: linear-gradient(180deg, #e6f3ff 0%, #d4e6ff 25%, #ff9dd4 50%, #c084fc 75%, #4f46e5 100%);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 600;
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+  min-height: 100vh;
+}
+
+.pixel-button {
+  border: 3px solid #ffffff;
+  box-shadow: 0 4px 0px rgba(79,70,229,0.4), inset 2px 2px 0px rgba(255,255,255,0.6), inset -2px -2px 0px rgba(79,70,229,0.2);
+  transition: all 0.1s ease;
+  border-radius: 4px;
+  font-weight: 700;
+  image-rendering: pixelated;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.pixel-button:hover {
+  transform: translate(0px, 2px);
+  box-shadow: 0 2px 0px rgba(0,0,0,0.1), inset 0 2px 0px rgba(255,255,255,0.3);
+}
+
+.pixel-button:active {
+  transform: translate(0px, 4px);
+  box-shadow: inset 0 2px 0px rgba(255,255,255,0.3);
+}
+
+.pixel-card {
+  border: 3px solid #ffffff;
+  box-shadow: 0 6px 0px rgba(79,70,229,0.3), 2px 0 0px rgba(255,255,255,0.4), -2px 0 0px rgba(79,70,229,0.1), 0 8px 16px rgba(0,0,0,0.1);
+  border-radius: 6px;
+  image-rendering: pixelated;
+  background: rgba(255,255,255,0.95);
+}
+
+.pixel-card:hover {
+  transform: translate(0px, -2px);
+  box-shadow: 0 6px 0px rgba(0,0,0,0.05), 0 12px 24px rgba(0,0,0,0.15);
 }
 
 @keyframes coinDrop {
@@ -57,4 +97,49 @@ body {
 
 .coin-bounce {
   animation: coinBounce 2s ease-in-out infinite;
+}
+
+.pixel-input {
+  border: 3px solid #d4e6ff;
+  box-shadow: inset 2px 2px 0px rgba(79,70,229,0.1), inset -2px -2px 0px rgba(255,255,255,0.3);
+  border-radius: 4px;
+  transition: all 0.15s ease;
+  image-rendering: pixelated;
+  background: rgba(255,255,255,0.95);
+  color: #374151;
+}
+
+.pixel-input:focus {
+  border-color: #4f46e5;
+  box-shadow: inset 0 2px 4px rgba(79,70,229,0.1), 0 0 0 3px rgba(79,70,229,0.1);
+}
+
+.cute-shadow {
+  box-shadow: 0 6px 0px rgba(79,70,229,0.4), 2px 0 0px rgba(255,255,255,0.5), -2px 0 0px rgba(255,157,212,0.2), 0 8px 20px rgba(255,157,212,0.15);
+  border-radius: 6px;
+  border: 3px solid #ffffff;
+  background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(230,243,255,0.95) 100%);
+}
+
+.cute-shadow:hover {
+  transform: translate(0px, -2px);
+  box-shadow: 0 6px 0px rgba(168,85,247,0.1), 0 8px 24px rgba(168,85,247,0.2);
+}
+
+@keyframes gentle-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+}
+
+.gentle-bounce:hover {
+  animation: gentle-bounce 0.6s ease-in-out;
+}
+
+@keyframes soft-glow {
+  0%, 100% { box-shadow: 0 4px 0px rgba(79,70,229,0.3), 0 6px 16px rgba(255,157,212,0.2); }
+  50% { box-shadow: 0 6px 0px rgba(79,70,229,0.4), 0 8px 20px rgba(255,157,212,0.3); }
+}
+
+.soft-glow {
+  animation: soft-glow 3s ease-in-out infinite;
 }
