@@ -51,7 +51,7 @@ export default function JeopardyPage({ params }: { params: Promise<{ deck: strin
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-purple-100">
+    <div className="min-h-screen">
       <div className="max-w-6xl mx-auto p-8">
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center">
@@ -61,40 +61,40 @@ export default function JeopardyPage({ params }: { params: Promise<{ deck: strin
             >
               <ArrowLeft size={24} className="text-purple-600" />
             </button>
-            <h1 className="text-3xl font-bold text-gray-800">Jeopardy Game</h1>
+            <h1 className="text-2xl font-bold text-blue-800 uppercase">JEOPARDY GAME</h1>
           </div>
           <div className="flex space-x-8">
             <div className="text-center">
-              <div className="text-sm text-gray-500">High Score</div>
-              <div className="text-2xl font-bold text-purple-600">{highScore}</div>
+              <div className="text-xs text-gray-500 uppercase">HIGH SCORE</div>
+              <div className="text-xl font-bold text-purple-600">{highScore}</div>
             </div>
             <div className="text-center">
-              <div className="text-sm text-gray-500">Current Score</div>
-              <div className="text-2xl font-bold text-pink-600">{currentScore}</div>
+              <div className="text-xs text-gray-500 uppercase">CURRENT SCORE</div>
+              <div className="text-xl font-bold text-pink-600">{currentScore}</div>
             </div>
           </div>
         </div>
 
         {selectedJeopardyCard ? (
-          <div className="bg-white rounded-xl shadow-lg p-8 max-w-2xl mx-auto">
+          <div className="pixel-card p-8 max-w-2xl mx-auto">
             <div className="text-center mb-6">
-              <div className="text-lg font-semibold text-purple-600 mb-4">
-                {selectedJeopardyCard.points} Points - {selectedJeopardyCard.difficulty.toUpperCase()}
+              <div className="text-sm font-bold text-purple-600 mb-4 uppercase">
+                {selectedJeopardyCard.points} POINTS - {selectedJeopardyCard.difficulty.toUpperCase()}
               </div>
               
               <div 
-                className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg p-8 min-h-64 flex items-center justify-center cursor-pointer transition-all duration-300 hover:shadow-md mb-6"
+                className="bg-gradient-to-br from-purple-50 to-pink-50 pixel-card p-8 min-h-64 flex items-center justify-center cursor-pointer mb-6"
                 onClick={() => setShowAnswer(!showAnswer)}
               >
                 <div className="text-center">
-                  <h3 className="text-xl font-semibold text-gray-800 mb-4">
-                    {showAnswer ? 'Answer:' : 'Question:'}
+                  <h3 className="text-lg font-bold text-gray-800 mb-4 uppercase">
+                    {showAnswer ? 'ANSWER:' : 'QUESTION:'}
                   </h3>
-                  <p className="text-lg text-gray-700">
+                  <p className="text-sm text-gray-700">
                     {showAnswer ? selectedJeopardyCard.answer : selectedJeopardyCard.question}
                   </p>
                   {!showAnswer && (
-                    <p className="text-sm text-gray-500 mt-4">Click to reveal answer</p>
+                    <p className="text-xs text-gray-500 mt-4 uppercase">CLICK TO REVEAL ANSWER</p>
                   )}
                 </div>
               </div>
@@ -103,15 +103,15 @@ export default function JeopardyPage({ params }: { params: Promise<{ deck: strin
                 <div className="flex justify-center space-x-4">
                   <button 
                     onClick={() => handleAnswer(true)}
-                    className="px-8 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200 font-semibold"
+                    className="px-8 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white pixel-button text-sm"
                   >
-                    Correct (+{selectedJeopardyCard.points})
+                    CORRECT (+{selectedJeopardyCard.points})
                   </button>
                   <button 
                     onClick={() => handleAnswer(false)}
-                    className="px-8 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all duration-200 font-semibold"
+                    className="px-8 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white pixel-button text-sm"
                   >
-                    Incorrect
+                    INCORRECT
                   </button>
                 </div>
               )}
@@ -123,7 +123,7 @@ export default function JeopardyPage({ params }: { params: Promise<{ deck: strin
             <div className="grid grid-cols-4 gap-4">
               <div></div> {/* Empty corner */}
               {topics.map(topic => (
-                <h3 key={topic} className="text-xl font-bold text-center text-gray-800 py-4">
+                <h3 key={topic} className="text-lg font-bold text-center text-blue-800 py-4 uppercase">
                   {topic}
                 </h3>
               ))}
@@ -134,7 +134,7 @@ export default function JeopardyPage({ params }: { params: Promise<{ deck: strin
               <div key={difficulty} className="grid grid-cols-4 gap-4">
                 {/* Difficulty label */}
                 <div className="flex items-center justify-center">
-                  <h3 className="text-lg font-bold text-gray-800 transform -rotate-0">
+                  <h3 className="text-sm font-bold text-blue-800 uppercase">
                     {difficulty}
                   </h3>
                 </div>
@@ -151,17 +151,17 @@ export default function JeopardyPage({ params }: { params: Promise<{ deck: strin
                       key={card.id}
                       onClick={() => setSelectedJeopardyCard(card)}
                       disabled={card.answered}
-                      className={`h-24 rounded-lg font-bold text-white text-xl transition-all duration-200 ${
+                      className={`h-24 pixel-button font-bold text-white text-sm ${
                         card.answered
                           ? 'bg-gray-400 cursor-not-allowed'
                           : difficulty === 'Easy'
-                          ? 'bg-gradient-to-br from-green-400 to-green-500 hover:from-green-500 hover:to-green-600 shadow-md hover:shadow-lg'
+                          ? 'bg-gradient-to-br from-green-400 to-green-500'
                           : difficulty === 'Medium'
-                          ? 'bg-gradient-to-br from-purple-400 to-purple-500 hover:from-purple-500 hover:to-purple-600 shadow-md hover:shadow-lg'
-                          : 'bg-gradient-to-br from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 shadow-md hover:shadow-lg'
+                          ? 'bg-gradient-to-br from-purple-400 to-purple-500'
+                          : 'bg-gradient-to-br from-pink-500 to-pink-600'
                       }`}
                     >
-                      {card.answered ? 'ANSWERED' : `${card.points} pts`}
+                      {card.answered ? 'ANSWERED' : `${card.points} PTS`}
                     </button>
                   );
                 })}

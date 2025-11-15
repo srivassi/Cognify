@@ -43,39 +43,39 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-400 via-pink-400 to-purple-600 flex items-center justify-center p-4">
-      <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-2xl p-8 w-full max-w-md border border-white/20">
+    <div className="min-h-screen flex items-center justify-center p-4">
+      <div className="bg-white pixel-card p-8 w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 border-3 border-white flex items-center justify-center mx-auto mb-4 soft-glow" style={{borderRadius: '4px'}}>
             <span className="text-white font-bold text-2xl">C</span>
           </div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-2">Cognify</h1>
-          <p className="text-gray-600 mb-2">Smart learning platform</p>
-          <p className="text-purple-600 font-medium text-lg">Ready to learn?</p>
+          <h1 className="text-2xl font-bold text-blue-700 mb-2 uppercase">COGNIFY</h1>
+          <p className="text-gray-600 mb-2 text-xs uppercase">SMART LEARNING PLATFORM</p>
+          <p className="text-purple-600 font-medium text-sm uppercase">READY TO LEARN?</p>
         </div>
 
         <form onSubmit={handleAuth} className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+            <label className="block text-xs font-bold text-blue-700 mb-2 uppercase">EMAIL</label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 bg-white"
-              placeholder="Enter your email"
+              className="w-full px-4 py-3 pixel-input focus:outline-none text-gray-900 text-sm"
+              placeholder="ENTER YOUR EMAIL"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
+            <label className="block text-xs font-bold text-blue-700 mb-2 uppercase">PASSWORD</label>
             <div className="relative">
               <input
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 bg-white"
-                placeholder="Enter your password"
+                className="w-full px-4 py-3 pr-12 pixel-input focus:outline-none text-gray-900 text-sm"
+                placeholder="ENTER YOUR PASSWORD"
                 required
               />
               <button
@@ -95,9 +95,9 @@ export default function AuthPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all duration-200 font-medium shadow-lg disabled:opacity-50"
+            className="w-full py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white pixel-button text-sm disabled:opacity-50"
           >
-            {loading ? (isSignUp ? 'Creating Account...' : 'Signing In...') : (isSignUp ? 'Sign Up' : 'Sign In')}
+            {loading ? (isSignUp ? 'CREATING...' : 'SIGNING IN...') : (isSignUp ? 'SIGN UP' : 'SIGN IN')}
           </button>
         </form>
         
@@ -107,9 +107,9 @@ export default function AuthPage() {
               setIsSignUp(!isSignUp);
               setError('');
             }}
-            className="text-purple-600 hover:text-purple-700 text-sm font-medium"
+            className="text-blue-700 hover:text-purple-700 text-xs font-bold uppercase"
           >
-            {isSignUp ? 'Already have an account? Sign In' : 'Need an account? Sign Up'}
+            {isSignUp ? 'ALREADY HAVE ACCOUNT? SIGN IN' : 'NEED ACCOUNT? SIGN UP'}
           </button>
         </div>
       </div>
