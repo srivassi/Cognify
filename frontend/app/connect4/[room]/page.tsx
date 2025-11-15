@@ -927,25 +927,21 @@ export default function Connect4Page({ params }: Connect4PageProps) {
         }
         
         // Broadcast board update to all players
-        await supabase
-          .channel(`room-${room.id}-players`)
-          .send({
-            type: 'broadcast',
-            event: 'board_update',
-            payload: { board: newBoard, winner }
-          });
+        await channelRef.current?.send({
+          type: 'broadcast',
+          event: 'board_update',
+          payload: { board: newBoard, winner }
+        });
         
         setWaitingForCoinDrop(false);
         setCanDropCoin(false);
         
         // Broadcast that coin drop is complete
-        await supabase
-          .channel(`room-${room.id}-players`)
-          .send({
-            type: 'broadcast',
-            event: 'coin_dropped',
-            payload: {}
-          });
+        await channelRef.current?.send({
+          type: 'broadcast',
+          event: 'coin_dropped',
+          payload: {}
+        });
         
         if (!winner) {
           setTimeout(() => nextQuestion(), 2000);
