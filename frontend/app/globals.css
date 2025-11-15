@@ -28,17 +28,10 @@ body {
   color: #4a5568;
   font-family: 'Nunito', sans-serif;
   font-weight: 600;
-  image-rendering: pixelated;
-  image-rendering: -moz-crisp-edges;
-  image-rendering: crisp-edges;
   min-height: 100vh;
 }
 
-* {
-  image-rendering: pixelated;
-  image-rendering: -moz-crisp-edges;
-  image-rendering: crisp-edges;
-}
+
 
 .pixelated {
   filter: contrast(1.2) saturate(1.1);
