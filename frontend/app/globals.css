@@ -253,3 +253,31 @@ body {
   animation: gentle-sway 4s ease-in-out infinite;
   transform-origin: top center;
 }
+
+.jeopardy-card {
+  background: linear-gradient(135deg, rgba(255,182,193,0.9) 0%, rgba(236,72,153,0.7) 50%, rgba(219,39,119,0.8) 100%);
+  transition: all 0.3s ease;
+}
+
+.jeopardy-card.answered.correct {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+}
+
+.jeopardy-card.answered.incorrect {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
+}
+
+.jeopardy-card:not(.answered):hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 0px rgba(236,72,153,0.4), 0 12px 30px rgba(236,72,153,0.2);
+}
+
+@keyframes score-pop {
+  0% { transform: scale(0) rotate(-10deg); opacity: 0; }
+  50% { transform: scale(1.2) rotate(5deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+.score-animation {
+  animation: score-pop 0.6s ease-out;
+}
