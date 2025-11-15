@@ -201,7 +201,7 @@ export default function Connect4Page({ params }: Connect4PageProps) {
       .on('broadcast', { event: 'coin_drop_wait' }, (payload) => {
         const w = payload.payload.winner;
         if (!w) {
-          nextQuestion();
+          if (isHost) nextQuestion();
           return;
         }
 
@@ -235,7 +235,8 @@ export default function Connect4Page({ params }: Connect4PageProps) {
         // If this player is host, process scoring immediately using broadcast data
         const questionData = payload.payload.question;
         console.log('Checking scoring conditions - isHost:', isHost, 'questionData:', !!questionData);
-        if (isHost && questionData) {
+        // ONLY process if host hasn't already processed via submitAnswers
+        if (isHost && questionData && !showScoring) {
           console.log('Host received freeze, processing scoring now');
           // Call scoring directly without submitAnswers to avoid isSubmitting guard
           setTimeout(async () => {
@@ -319,7 +320,9 @@ export default function Connect4Page({ params }: Connect4PageProps) {
                   });
                 }, 3000);
               } else {
-                setTimeout(() => nextQuestion(), 3000);
+                setTimeout(() => {
+                  if (isHost) nextQuestion();
+                }, 3000);
               }
             } catch (error) {
               console.error('Scoring API failed:', error);
@@ -990,13 +993,11 @@ export default function Connect4Page({ params }: Connect4PageProps) {
     setCanDropCoin(false);
     
     // Broadcast coin drop to all players
-    await supabase
-      .channel(`room-${room.id}-players`)
-      .send({
-        type: 'broadcast',
-        event: 'coin_drop',
-        payload: { player: roundWinner, col }
-      });
+    await channelRef.current?.send({
+      type: 'broadcast',
+      event: 'coin_drop',
+      payload: { player: roundWinner, col }
+    });
     
     if (isHost) {
       dropCoin(roundWinner, col);
@@ -1051,13 +1052,11 @@ export default function Connect4Page({ params }: Connect4PageProps) {
       setFirstSubmitter(null);
       
       // Broadcast new question to all players
-      await supabase
-        .channel(`room-${room.id}-players`)
-        .send({
-          type: 'broadcast',
-          event: 'new_question',
-          payload: { question: flashcards[nextIndex], index: nextIndex }
-        });
+      await channelRef.current?.send({
+        type: 'broadcast',
+        event: 'new_question',
+        payload: { question: flashcards[nextIndex], index: nextIndex }
+      });
       
       startTimer();
     }
@@ -1076,13 +1075,11 @@ export default function Connect4Page({ params }: Connect4PageProps) {
       
       setGameStarted(true);
       
-      await supabase
-        .channel(`room-${room.id}-players`)
-        .send({
-          type: 'broadcast',
-          event: 'game_started',
-          payload: {}
-        });
+      await channelRef.current?.send({
+        type: 'broadcast',
+        event: 'game_started',
+        payload: {}
+      });
     } catch (error) {
       // Handle error silently
     }
