@@ -59,7 +59,7 @@ export default function DeckPage({ params }: { params: Promise<{ id: string }> }
         setFlashcards(cardsWithStatus);
         setDeckTitle(setData?.title || 'Flashcard Set');
       } catch (error) {
-        // Handle error silently
+        setDeckTitle('Error loading deck');
       } finally {
         setLoading(false);
       }

@@ -50,7 +50,7 @@ const Dashboard = () => {
         
         setFlashcardSets(mappedSets);
       } catch (error) {
-        setFlashcardSets([]);
+        // Handle error silently
       }
     };
     
@@ -144,7 +144,7 @@ const Dashboard = () => {
         alert('Error processing PDF: ' + result.message);
       }
     } catch (error) {
-      alert('Error creating flashcards');
+      // Handle error silently
     } finally {
       setIsProcessing(false);
     }

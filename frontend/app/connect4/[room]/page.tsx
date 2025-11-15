@@ -58,17 +58,13 @@ export default function Connect4Page({ params }: Connect4PageProps) {
 
     loadPlayers();
 
-    // Subscribe to player changes
     const playersSubscription = supabase
       .channel(`room-${room.id}-players`)
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'connect4_players', filter: `room_id=eq.${room.id}` },
         (payload) => {
-          console.log('Player change detected:', payload);
           if (payload.eventType === 'DELETE') {
-            // Player left - reload players to update UI
             loadPlayers();
-            // If game was in progress and a player left, end the game
             if (gameStarted) {
               alert('A player has left the game. Returning to home.');
               router.push('/');
@@ -78,29 +74,23 @@ export default function Connect4Page({ params }: Connect4PageProps) {
           }
         }
       )
-      .on('broadcast', { event: 'player_joined' }, (payload) => {
-        console.log('Player joined broadcast received:', payload);
+      .on('broadcast', { event: 'player_joined' }, () => {
         loadPlayers();
       })
-      .on('broadcast', { event: 'player_left' }, (payload) => {
-        console.log('Player left broadcast received:', payload);
+      .on('broadcast', { event: 'player_left' }, () => {
         loadPlayers();
         if (gameStarted) {
           alert('A player has left the game. Returning to home.');
           router.push('/');
         }
       })
-      .subscribe((status) => {
-        console.log('Players subscription status:', status);
-      });
+      .subscribe();
 
-    // Subscribe to room changes
     const roomSubscription = supabase
       .channel(`room-${room.id}-status`)
       .on('postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'connect4_rooms', filter: `id=eq.${room.id}` },
         (payload) => {
-          console.log('Room status changed:', payload.new);
           if (payload.new.status === 'playing') {
             setGameStarted(true);
           }
@@ -108,15 +98,12 @@ export default function Connect4Page({ params }: Connect4PageProps) {
       )
       .subscribe();
 
-    // Cleanup function
     return () => {
-      console.log('Cleaning up subscriptions');
       playersSubscription.unsubscribe();
       roomSubscription.unsubscribe();
     };
   }, [room, gameStarted]);
 
-  // Cleanup when component unmounts
   useEffect(() => {
     const handleBeforeUnload = async () => {
       if (room && hasJoined) {
@@ -157,47 +144,30 @@ export default function Connect4Page({ params }: Connect4PageProps) {
         return;
       }
 
-      console.log('User ID:', session.user.id);
-      console.log('Game Code:', gameCode);
-
-      // Check if room exists (use maybeSingle to avoid error on no results)
       const { data: existingRoom, error: roomError } = await supabase
         .from('connect4_rooms')
         .select('*')
         .eq('room_code', gameCode)
         .maybeSingle();
 
-      if (roomError) {
-        console.error('Error checking for room:', roomError);
-        return;
-      }
+      if (roomError) return;
 
       if (existingRoom) {
-        console.log('Found existing room:', existingRoom);
         setRoom(existingRoom);
         setIsHost(existingRoom.host_user_id === session.user.id);
         
-        // Load deck name if deck_id exists
         if (existingRoom.deck_id) {
-          console.log('Loading deck for deck_id:', existingRoom.deck_id);
-          const { data: deckData, error: deckError } = await supabase
+          const { data: deckData } = await supabase
             .from('flashcard_sets')
             .select('title')
             .eq('id', existingRoom.deck_id)
             .single();
           
-          if (deckError) {
-            console.error('Error loading deck:', deckError);
-            setDeckName(`Flashcard Set ${existingRoom.deck_id}`);
-          } else if (deckData) {
-            console.log('Loaded deck name:', deckData.title);
-            setDeckName(deckData.title);
-          }
+          setDeckName(deckData?.title || `Flashcard Set ${existingRoom.deck_id}`);
         } else {
           setDeckName(`Room ${gameCode}`);
         }
         
-        // Check if user is already in the room
         const { data: existingPlayer } = await supabase
           .from('connect4_players')
           .select('*')
@@ -209,11 +179,10 @@ export default function Connect4Page({ params }: Connect4PageProps) {
           setHasJoined(true);
         }
       } else {
-        console.log('Room not found, creating new room');
         await createRoom(session.user.id);
       }
     } catch (error) {
-      console.error('Error initializing room:', error);
+      // Handle error silently
     } finally {
       setLoading(false);
     }
@@ -221,7 +190,6 @@ export default function Connect4Page({ params }: Connect4PageProps) {
 
   const createRoom = async (userId: string) => {
     try {
-      // Check one more time if room exists (race condition protection)
       const { data: existingRoom } = await supabase
         .from('connect4_rooms')
         .select('*')
@@ -229,14 +197,12 @@ export default function Connect4Page({ params }: Connect4PageProps) {
         .maybeSingle();
 
       if (existingRoom) {
-        console.log('Room already exists, joining instead');
         setRoom(existingRoom);
         setIsHost(existingRoom.host_user_id === userId);
         await joinRoom(existingRoom.id, userId);
         return;
       }
 
-      // Get deck ID from URL parameter
       const urlParams = new URLSearchParams(window.location.search);
       const deckId = urlParams.get('deck');
       
@@ -252,8 +218,6 @@ export default function Connect4Page({ params }: Connect4PageProps) {
         .single();
 
       if (error) {
-        console.error('Error creating room:', error);
-        // If duplicate key error, try to join existing room
         if (error.code === '23505') {
           const { data: existingRoom } = await supabase
             .from('connect4_rooms')
@@ -271,8 +235,7 @@ export default function Connect4Page({ params }: Connect4PageProps) {
         throw error;
       }
       
-      // Host is always Player 1
-      const { error: playerError } = await supabase
+      await supabase
         .from('connect4_players')
         .insert({
           room_id: newRoom.id,
@@ -280,37 +243,23 @@ export default function Connect4Page({ params }: Connect4PageProps) {
           player_number: 1
         });
 
-      if (playerError) {
-        console.error('Error adding host as player:', playerError);
-      }
-
       setRoom(newRoom);
       setIsHost(true);
       setHasJoined(true);
       
-      // Load deck name after creating room
       if (deckId) {
-        console.log('Loading deck name for new room, deck_id:', deckId);
-        const { data: deckData, error: deckError } = await supabase
+        const { data: deckData } = await supabase
           .from('flashcard_sets')
           .select('title')
           .eq('id', parseInt(deckId))
           .single();
         
-        if (deckError) {
-          console.error('Error loading deck for new room:', deckError);
-          setDeckName(`Flashcard Set ${deckId}`);
-        } else if (deckData) {
-          console.log('Loaded deck name for new room:', deckData.title);
-          setDeckName(deckData.title);
-        }
+        setDeckName(deckData?.title || `Flashcard Set ${deckId}`);
       } else {
         setDeckName(`Room ${gameCode}`);
       }
-      
-      console.log('Room created successfully');
     } catch (error) {
-      console.error('Error creating room:', error);
+      // Handle error silently
     }
   };
 
@@ -318,38 +267,27 @@ export default function Connect4Page({ params }: Connect4PageProps) {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session || !room) return;
-
-      console.log('Leaving room:', room.id);
       
-      // Remove player from room
-      const { error } = await supabase
+      await supabase
         .from('connect4_players')
         .delete()
         .eq('room_id', room.id)
         .eq('user_id', session.user.id);
 
-      if (error) {
-        console.error('Error leaving room:', error);
-      } else {
-        // Broadcast that player left
-        await supabase
-          .channel(`room-${room.id}-players`)
-          .send({
-            type: 'broadcast',
-            event: 'player_left',
-            payload: { user_id: session.user.id }
-          });
-      }
+      await supabase
+        .channel(`room-${room.id}-players`)
+        .send({
+          type: 'broadcast',
+          event: 'player_left',
+          payload: { user_id: session.user.id }
+        });
     } catch (error) {
-      console.error('Error in leaveRoom:', error);
+      // Handle error silently
     }
   };
 
   const joinRoom = async (roomId: string, userId: string) => {
     try {
-      console.log('Attempting to join room:', roomId, 'as user:', userId);
-      
-      // Check if user is already in the room
       const { data: existingPlayer, error: checkError } = await supabase
         .from('connect4_players')
         .select('*')
@@ -357,31 +295,15 @@ export default function Connect4Page({ params }: Connect4PageProps) {
         .eq('user_id', userId)
         .single();
 
-      if (checkError && checkError.code !== 'PGRST116') {
-        console.error('Error checking existing player:', checkError);
-        return;
-      }
+      if (checkError && checkError.code !== 'PGRST116') return;
+      if (existingPlayer) return;
 
-      if (existingPlayer) {
-        console.log('User already in room as player:', existingPlayer.player_number);
-        return;
-      }
-
-      // Get current players to determine next player number
-      const { data: players, error: playersError } = await supabase
+      const { data: players } = await supabase
         .from('connect4_players')
         .select('player_number')
         .eq('room_id', roomId)
         .order('player_number');
 
-      if (playersError) {
-        console.error('Error getting players:', playersError);
-        return;
-      }
-
-      console.log('Current players:', players);
-
-      // Determine player number
       let playerNumber = 1;
       if (players && players.length > 0) {
         const existingNumbers = players.map(p => p.player_number);
@@ -389,10 +311,7 @@ export default function Connect4Page({ params }: Connect4PageProps) {
           playerNumber = 2;
         }
       }
-
-      console.log('Assigning player number:', playerNumber);
       
-      // Only join if there's space (max 2 players)
       if (!players || players.length < 2) {
         const { error } = await supabase
           .from('connect4_players')
@@ -402,15 +321,10 @@ export default function Connect4Page({ params }: Connect4PageProps) {
             player_number: playerNumber
           });
 
-        if (error) {
-          console.error('Error inserting player:', error);
-        } else {
-          console.log('Successfully joined as player', playerNumber);
+        if (!error) {
           setHasJoined(true);
-          // Immediately reload players after joining
           await loadPlayers();
           
-          // Trigger reload on all other clients by sending a custom event
           const triggerChannel = supabase.channel(`room-${roomId}-players`);
           await triggerChannel.send({
             type: 'broadcast',
@@ -418,39 +332,27 @@ export default function Connect4Page({ params }: Connect4PageProps) {
             payload: { player_number: playerNumber }
           });
         }
-      } else {
-        console.log('Room is full, cannot join');
       }
     } catch (error) {
-      console.error('Error in joinRoom:', error);
+      // Handle error silently
     }
   };
 
   const loadPlayers = async () => {
-    if (!room) {
-      console.log('No room available for loading players');
-      return;
-    }
+    if (!room) return;
     
     try {
-      console.log('Loading players for room:', room.id);
-      const { data: playersData, error } = await supabase
+      const { data: playersData } = await supabase
         .from('connect4_players')
         .select('*')
         .eq('room_id', room.id)
         .order('player_number');
 
-      if (error) {
-        console.error('Error loading players:', error);
-        return;
-      }
-
-      console.log('Loaded players:', playersData);
       if (playersData) {
         setPlayers(playersData);
       }
     } catch (error) {
-      console.error('Error in loadPlayers:', error);
+      // Handle error silently
     }
   };
 
@@ -563,8 +465,6 @@ export default function Connect4Page({ params }: Connect4PageProps) {
                   Playing with: {deckName}
                 </p>
               )}
-              {/* Debug: show deckName state */}
-              {console.log('Current deckName state:', deckName)}
             </div>
           </div>
           
