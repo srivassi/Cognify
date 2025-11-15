@@ -59,6 +59,7 @@ export default function Connect4Page({ params }: Connect4PageProps) {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const channelRef = useRef<any>(null);
   const [roundWinner, setRoundWinner] = useState<number | null>(null);
+  const [firstSubmitter, setFirstSubmitter] = useState<number | null>(null);
 
   
   const getWordColors = (userAnswer: string, correctAnswer: string) => {
@@ -147,6 +148,7 @@ export default function Connect4Page({ params }: Connect4PageProps) {
         setWaitingForCoinDrop(false);
         setCanDropCoin(false);
         setShowConfetti(false);
+        setFirstSubmitter(null);
         setTimer(20);
         if (isHost) startTimer();
       })
@@ -269,8 +271,16 @@ export default function Connect4Page({ params }: Connect4PageProps) {
                 };
               }
               
-              const winner = finalResult.player1_score > finalResult.player2_score ? 1 : 
-                            finalResult.player2_score > finalResult.player1_score ? 2 : null;
+              let winner = null;
+              if (finalResult.player1_score > finalResult.player2_score) {
+                winner = 1;
+              } else if (finalResult.player2_score > finalResult.player1_score) {
+                winner = 2;
+              } else {
+                // Tie - winner is whoever submitted first
+                winner = payload.payload.firstSubmitter || 1;
+                console.log('Tie game - first submitter wins:', winner);
+              }
               
               console.log('Broadcasting scoring results...');
               
@@ -789,6 +799,12 @@ export default function Connect4Page({ params }: Connect4PageProps) {
       timerRef.current = null;
     }
     
+    // Track who submitted first
+    if (!firstSubmitter) {
+      setFirstSubmitter(userPlayerNumber || 1);
+      console.log('First submitter:', userPlayerNumber);
+    }
+    
     // Broadcast freeze state to OTHER players with question data
     if (channelRef.current) {
       console.log('Sending freeze_game broadcast with question data...');
@@ -798,7 +814,8 @@ export default function Connect4Page({ params }: Connect4PageProps) {
         payload: {
           question: currentQuestion,
           player1Answer: player1Answer,
-          player2Answer: player2Answer
+          player2Answer: player2Answer,
+          firstSubmitter: userPlayerNumber || 1
         }
       });
       console.log('Freeze broadcast result:', result);
@@ -836,8 +853,16 @@ export default function Connect4Page({ params }: Connect4PageProps) {
       console.log('Scoring result:', result);
       
       if (result.status === 'success') {
-        const winner = result.player1_score > result.player2_score ? 1 : 
-                      result.player2_score > result.player1_score ? 2 : null;
+        let winner = null;
+        if (result.player1_score > result.player2_score) {
+          winner = 1;
+        } else if (result.player2_score > result.player1_score) {
+          winner = 2;
+        } else {
+          // Tie - winner is whoever submitted first
+          winner = firstSubmitter || 1;
+          console.log('Tie game - first submitter wins:', winner);
+        }
         
         // Broadcast scoring results to all players
         console.log('Broadcasting scoring results:', {
@@ -1021,6 +1046,7 @@ export default function Connect4Page({ params }: Connect4PageProps) {
       setPlayer2Analysis([]);
       setWaitingForCoinDrop(false);
       setCanDropCoin(false);
+      setFirstSubmitter(null);
       
       // Broadcast new question to all players
       await supabase
