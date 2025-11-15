@@ -208,13 +208,7 @@ export default function Connect4Page({ params }: Connect4PageProps) {
         setShowScoring(false);
         setWaitingForCoinDrop(true);
         
-        // Immediately set coin drop permission for the winner
-        if (userPlayerNumber === w) {
-          console.log('Setting canDropCoin to true for winner');
-          setCanDropCoin(true);
-        } else {
-          setCanDropCoin(false);
-        }
+        // Don't set canDropCoin here - let useEffect handle it when userPlayerNumber is ready
       })
       .on('broadcast', { event: 'timer_stop' }, () => {
         if (timerRef.current) {
