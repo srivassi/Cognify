@@ -28,6 +28,13 @@ body {
   color: #4a5568;
   font-family: 'Nunito', sans-serif;
   font-weight: 600;
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: grayscale;
+  font-smooth: never;
+  text-shadow: 1px 1px 0px rgba(255,182,193,0.4), 0.5px 0.5px 0px rgba(147,51,234,0.2);
+  letter-spacing: 0.5px;
+  filter: contrast(1.05);
   min-height: 100vh;
 }
 
