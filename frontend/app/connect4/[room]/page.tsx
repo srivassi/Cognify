@@ -1333,6 +1333,18 @@ export default function Connect4Page({ params }: Connect4PageProps) {
               </div>
             )}
             
+            {/* Next Question Button */}
+            {!waitingForCoinDrop && !showScoring && !isSubmitting && roundWinner && isHost && (
+              <div className="text-center mb-4">
+                <button
+                  onClick={() => nextQuestion()}
+                  className="px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200 font-semibold"
+                >
+                  Next Question
+                </button>
+              </div>
+            )}
+            
             {/* Player Input Area - spans board width */}
             <div className="max-w-2xl mx-auto">
               {userPlayerNumber === 1 ? (
