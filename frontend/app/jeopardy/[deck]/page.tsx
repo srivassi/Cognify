@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabaseClient';
 
 interface JeopardyCard {
   id: number;
@@ -21,25 +22,62 @@ export default function JeopardyPage({ params }: { params: Promise<{ deck: strin
   const [selectedJeopardyCard, setSelectedJeopardyCard] = useState<JeopardyCard | null>(null);
   const [showAnswer, setShowAnswer] = useState(false);
   const [highScore, setHighScore] = useState(1250);
-  const initialCards: JeopardyCard[] = [
-    // Easy row - all 100 points
-    { id: 1, question: 'What is a Binary Search Tree?', answer: 'A binary tree where left child < parent < right child', points: 100, difficulty: 'easy', answered: false },
-    { id: 2, question: 'What is Big O notation?', answer: 'Mathematical notation describing algorithm complexity', points: 100, difficulty: 'easy', answered: false },
-    { id: 3, question: 'What is HTML?', answer: 'HyperText Markup Language for web pages', points: 100, difficulty: 'easy', answered: false },
-    // Medium row - all 300 points
-    { id: 4, question: 'What is a Hash Table?', answer: 'Data structure using hash function to map keys to values', points: 300, difficulty: 'medium', answered: false },
-    { id: 5, question: 'What is dynamic programming?', answer: 'Optimization technique using memoization', points: 300, difficulty: 'medium', answered: false },
-    { id: 6, question: 'What is React?', answer: 'JavaScript library for building user interfaces', points: 300, difficulty: 'medium', answered: false },
-    // Hard row - all 500 points
-    { id: 7, question: 'What is a Red-Black Tree?', answer: 'Self-balancing binary search tree', points: 500, difficulty: 'hard', answered: false },
-    { id: 8, question: 'What is NP-completeness?', answer: 'Class of computational decision problems', points: 500, difficulty: 'hard', answered: false },
-    { id: 9, question: 'What is GraphQL?', answer: 'Query language for APIs and runtime for queries', points: 500, difficulty: 'hard', answered: false },
-  ];
-
-  const [cards, setCards] = useState(initialCards);
+  const [cards, setCards] = useState<JeopardyCard[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [deckTitle, setDeckTitle] = useState('Loading...');
   const [scoreAnimation, setScoreAnimation] = useState<{show: boolean, points: number, correct: boolean}>({show: false, points: 0, correct: false});
 
-  const topics = ['Data Structures', 'Algorithms', 'Web Dev'];
+  useEffect(() => {
+    const fetchFlashcards = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+        
+        const { data: flashcardsData, error: flashcardsError } = await supabase
+          .from('flashcards')
+          .select('*')
+          .eq('set_id', resolvedParams.deck)
+          .order('order_index');
+        
+        if (flashcardsError) throw flashcardsError;
+        
+        const { data: setData, error: setError } = await supabase
+          .from('flashcard_sets')
+          .select('title')
+          .eq('id', resolvedParams.deck)
+          .eq('user_id', session.user.id)
+          .single();
+        
+        if (setError) throw setError;
+        
+        const jeopardyCards: JeopardyCard[] = (flashcardsData || []).slice(0, 9).map((card, index) => {
+          const difficultyIndex = Math.floor(index / 3);
+          const difficulty = difficultyIndex === 0 ? 'easy' : difficultyIndex === 1 ? 'medium' : 'hard';
+          const points = difficulty === 'easy' ? 100 : difficulty === 'medium' ? 300 : 500;
+          
+          return {
+            id: card.id,
+            question: card.question,
+            answer: card.answer,
+            points,
+            difficulty,
+            answered: false
+          };
+        });
+        
+        setCards(jeopardyCards);
+        setDeckTitle(setData?.title || 'Knowledge Challenge');
+      } catch (error) {
+        console.error('Error fetching flashcards:', error);
+        setDeckTitle('Error loading deck');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFlashcards();
+  }, [resolvedParams.deck]);
+
   const difficulties = ['Easy', 'Medium', 'Hard'];
 
   const handleAnswer = (correct: boolean) => {
@@ -80,7 +118,7 @@ export default function JeopardyPage({ params }: { params: Promise<{ deck: strin
             >
               <ArrowLeft size={24} className="text-purple-600" />
             </button>
-            <h1 className="text-2xl font-semibold text-slate-700">Knowledge Challenge</h1>
+            <h1 className="text-2xl font-semibold text-slate-700">{deckTitle}</h1>
           </div>
           <div className="flex space-x-8">
             <div className="text-center">
@@ -141,68 +179,64 @@ export default function JeopardyPage({ params }: { params: Promise<{ deck: strin
         )}
         
         <div className={selectedJeopardyCard ? 'opacity-30' : ''}>
-          <div className="flex-1 flex items-center justify-center">
-            <div className="space-y-8 w-full max-w-7xl px-2" style={{marginLeft: '-8rem'}}>
-              {/* Header row with topics */}
-              <div className="grid grid-cols-4" style={{gap: '8rem'}}>
-                <div></div> {/* Empty corner */}
-                {topics.map(topic => (
-                  <h3 key={topic} className="text-lg font-semibold text-center text-slate-600 py-4">
-                    {topic}
-                  </h3>
+          {loading ? (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-lg text-slate-600">Loading flashcards...</div>
+            </div>
+          ) : cards.length === 0 ? (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-lg text-slate-600">No flashcards found for this deck</div>
+            </div>
+          ) : (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="space-y-8 w-full max-w-4xl">
+                {difficulties.map((difficulty, diffIndex) => (
+                  <div key={difficulty} className="grid grid-cols-4 gap-8">
+                    <div className="flex items-center justify-center">
+                      <h3 className="text-sm font-medium text-slate-500">
+                        {difficulty}
+                      </h3>
+                    </div>
+                    
+                    {[0, 1, 2].map((cardOffset) => {
+                      const cardIndex = diffIndex * 3 + cardOffset;
+                      const card = cards[cardIndex];
+                      
+                      if (!card) return <div key={cardOffset} />;
+                      
+                      return (
+                        <button
+                          key={card.id}
+                          onClick={() => setSelectedJeopardyCard(card)}
+                          disabled={card.answered}
+                          className={`h-36 w-52 font-medium text-base jeopardy-card rounded-lg ${
+                            card.answered
+                              ? 'cursor-not-allowed answered'
+                              : difficulty === 'Easy'
+                              ? 'bg-gradient-to-br from-emerald-500 to-emerald-600 text-white'
+                              : difficulty === 'Medium'
+                              ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white'
+                              : 'bg-gradient-to-br from-indigo-500 to-indigo-600 text-white'
+                          }`}
+                          style={card.answered ? {
+                            background: card.correct 
+                              ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
+                              : 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'
+                          } : {}}
+                        >
+                          <span className={card.answered ? 'text-white' : 'text-slate-600'}>
+                            {card.answered ? 'ANSWERED' : `${card.points} PTS`}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 ))}
               </div>
-              
-              {/* Rows with difficulty labels and cards */}
-              {difficulties.map((difficulty, diffIndex) => (
-                <div key={difficulty} className="grid grid-cols-4" style={{gap: '8rem'}}>
-                  {/* Difficulty label */}
-                  <div className="flex items-center justify-center">
-                    <h3 className="text-sm font-medium text-slate-500">
-                      {difficulty}
-                    </h3>
-                  </div>
-                  
-                  {/* Cards for each topic */}
-                  {topics.map((topic, topicIndex) => {
-                    const cardIndex = diffIndex * 3 + topicIndex;
-                    const card = cards[cardIndex];
-                    
-                    if (!card) return <div key={topic} />;
-                    
-                    return (
-                      <button
-                        key={card.id}
-                        onClick={() => setSelectedJeopardyCard(card)}
-                        disabled={card.answered}
-                        className={`h-36 w-52 font-medium text-base jeopardy-card rounded-lg ${
-                          card.answered
-                            ? 'cursor-not-allowed answered'
-                            : difficulty === 'Easy'
-                            ? 'bg-gradient-to-br from-emerald-500 to-emerald-600 text-white'
-                            : difficulty === 'Medium'
-                            ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white'
-                            : 'bg-gradient-to-br from-indigo-500 to-indigo-600 text-white'
-                        }`}
-                        style={card.answered ? {
-                          background: card.correct 
-                            ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
-                            : 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'
-                        } : {}}
-                      >
-                        <span className={card.answered ? 'text-white' : 'text-slate-600'}>
-                          {card.answered ? 'ANSWERED' : `${card.points} PTS`}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              ))}
             </div>
-          </div>
+          )}
         </div>
         
-        {/* Score Animation Overlay */}
         {scoreAnimation.show && (
           <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-50">
             <div className={`text-6xl font-bold score-animation ${
