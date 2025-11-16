@@ -16,7 +16,7 @@ interface Flashcard {
 
 export default function DeckPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
-  const resolvedParams = React.use(params);
+  const [resolvedParams, setResolvedParams] = useState<{ id: string } | null>(null);
   const [currentCard, setCurrentCard] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
@@ -28,12 +28,17 @@ export default function DeckPage({ params }: { params: Promise<{ id: string }> }
   const [slideDirection, setSlideDirection] = useState<'left' | 'right'>('right');
 
   useEffect(() => {
+    params.then(setResolvedParams);
+  }, [params]);
+
+  useEffect(() => {
+    if (!resolvedParams) return;
+    
     const fetchFlashcards = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return;
         
-        // Get flashcards
         const { data: flashcardsData, error: flashcardsError } = await supabase
           .from('flashcards')
           .select('*')
@@ -42,7 +47,6 @@ export default function DeckPage({ params }: { params: Promise<{ id: string }> }
         
         if (flashcardsError) throw flashcardsError;
         
-        // Get set title
         const { data: setData, error: setError } = await supabase
           .from('flashcard_sets')
           .select('title')
@@ -59,7 +63,6 @@ export default function DeckPage({ params }: { params: Promise<{ id: string }> }
         setFlashcards(cardsWithStatus);
         setDeckTitle(setData?.title || 'Flashcard Set');
         
-        // Update last_studied timestamp
         await supabase
           .from('flashcard_sets')
           .update({ last_studied: new Date().toISOString() })
@@ -73,7 +76,7 @@ export default function DeckPage({ params }: { params: Promise<{ id: string }> }
     };
 
     fetchFlashcards();
-  }, [resolvedParams.id]);
+  }, [resolvedParams]);
 
   const handleSwipe = (direction: 'left' | 'right') => {
     const currentFlashcard = flashcards[currentCard];
@@ -107,13 +110,23 @@ export default function DeckPage({ params }: { params: Promise<{ id: string }> }
   };
 
   const startConnect4 = () => {
+    if (!resolvedParams) return;
     const roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
     router.push(`/connect4/${roomCode}?deck=${resolvedParams.id}`);
   };
 
   const startJeopardy = () => {
+    if (!resolvedParams) return;
     router.push(`/jeopardy/${resolvedParams.id}`);
   };
+
+  if (!resolvedParams) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-purple-100 flex items-center justify-center">
+        <div className="text-lg text-gray-600">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-purple-100">
