@@ -131,7 +131,7 @@ export default function Connect4Page({ params }: Connect4PageProps) {
         setGameStarted(true);
       })
       .on('broadcast', { event: 'new_question' }, (payload) => {
-        console.log('New question - complete reset for both players');
+        console.log('New question - complete reset for both players, isHost:', isHost, 'index:', payload.payload.index);
         // COMPLETE CLEAN SLATE - No trace of previous question
         setCurrentQuestion(payload.payload.question);
         setQuestionIndex(payload.payload.index);
@@ -151,7 +151,16 @@ export default function Connect4Page({ params }: Connect4PageProps) {
         setShowConfetti(false);
         setFirstSubmitter(null);
         setTimer(20);
-        if (isHost) startTimer();
+        console.log('Reset complete, waiting state cleared');
+        
+        // Both host and non-host need to show timer reset
+        if (isHost) {
+          console.log('Host restarting timer');
+          startTimer();
+        } else {
+          console.log('Non-host player received new question, timer reset to 20');
+          // Non-host just resets the visual timer, host controls the actual countdown
+        }
       })
       .on('broadcast', { event: 'board_update' }, (payload) => {
         console.log('Board update - both players sync:', payload.payload);
@@ -208,12 +217,15 @@ export default function Connect4Page({ params }: Connect4PageProps) {
       })
       .on('broadcast', { event: 'coin_drop_wait' }, (payload) => {
         const w = payload.payload.winner;
+        console.log('coin_drop_wait received, winner:', w, 'userPlayerNumber:', userPlayerNumber, 'isHost:', isHost);
+        
         if (!w) {
+          console.log('No winner in coin_drop_wait, advancing to next question');
           if (isHost) nextQuestion();
           return;
         }
 
-        console.log('Coin drop wait - winner:', w, 'userPlayerNumber:', userPlayerNumber);
+        console.log('Setting up coin drop waiting state - winner:', w, 'userPlayerNumber:', userPlayerNumber);
         setRoundWinner(w);
         setShowScoring(false);
         setWaitingForCoinDrop(true);
@@ -321,6 +333,12 @@ export default function Connect4Page({ params }: Connect4PageProps) {
               if (winner) {
                 setTimeout(async () => {
                   console.log('Broadcasting coin_drop_wait for winner (from freeze handler):', winner);
+                  
+                  // Set state for host immediately (before broadcast)
+                  setRoundWinner(winner);
+                  setShowScoring(false);
+                  setWaitingForCoinDrop(true);
+                  
                   await channelRef.current?.send({
                     type: 'broadcast',
                     event: 'coin_drop_wait',
@@ -356,7 +374,7 @@ export default function Connect4Page({ params }: Connect4PageProps) {
         }
       })
       .on('broadcast', { event: 'coin_dropped' }, () => {
-        console.log('Received coin_dropped broadcast');
+        console.log('Received coin_dropped broadcast, isHost:', isHost);
         setWaitingForCoinDrop(false);
         setCanDropCoin(false);
 
@@ -366,9 +384,10 @@ export default function Connect4Page({ params }: Connect4PageProps) {
           coinDropTimeoutRef.current = null;
         }
 
-        // Host loads next question after coin drop completes
-        if (isHost) {
-          setTimeout(() => nextQuestion(), 2000);
+        // Host already advances in dropCoin() function
+        // Non-host players just wait for new_question broadcast
+        if (!isHost) {
+          console.log('Non-host player waiting for next question broadcast from host');
         }
       })
       .subscribe();
@@ -443,7 +462,8 @@ export default function Connect4Page({ params }: Connect4PageProps) {
 
   useEffect(() => {
     if (gameStarted) {
-      loadFlashcards();
+      console.log('Game started, loading flashcards, isHost:', isHost);
+      loadFlashcards(isHost);
     }
   }, [gameStarted, room]);
 
@@ -709,20 +729,28 @@ export default function Connect4Page({ params }: Connect4PageProps) {
     }
   };
 
-  const loadFlashcards = async () => {
-    if (!room?.deck_id) return;
+  const loadFlashcards = async (hostStatus?: boolean) => {
+    const isHostNow = hostStatus !== undefined ? hostStatus : isHost;
+    console.log('loadFlashcards called, room.deck_id:', room?.deck_id, 'isHost:', isHostNow);
+    if (!room?.deck_id) {
+      console.log('No deck_id, returning');
+      return;
+    }
     
     try {
-      const { data: flashcardsData } = await supabase
+      const { data: flashcardsData, error } = await supabase
         .from('flashcards')
         .select('question, answer')
         .eq('set_id', room.deck_id)
         .order('order_index');
       
+      console.log('Fetched flashcards:', flashcardsData?.length, 'error:', error);
+      
       if (flashcardsData && flashcardsData.length > 0) {
         // Only host shuffles and broadcasts questions
-        if (isHost) {
+        if (isHostNow) {
           const shuffled = [...flashcardsData].sort(() => Math.random() - 0.5);
+          console.log('Host shuffled flashcards, count:', shuffled.length);
           setFlashcards(shuffled);
           setCurrentQuestion(shuffled[0]);
           
@@ -735,11 +763,14 @@ export default function Connect4Page({ params }: Connect4PageProps) {
               payload: { question: shuffled[0], index: 0 }
             });
         } else {
+          console.log('Non-host player setting flashcards, count:', flashcardsData.length);
           setFlashcards(flashcardsData);
         }
+      } else {
+        console.log('No flashcard data returned');
       }
     } catch (error) {
-      // Handle error silently
+      console.error('Error loading flashcards:', error);
     }
   };
 
@@ -913,16 +944,20 @@ export default function Connect4Page({ params }: Connect4PageProps) {
           setTimeout(async () => {
             console.log('Broadcasting coin_drop_wait for winner (from submitAnswers):', winner);
             
+            // Update local state for host FIRST before broadcasting
+            if (isHost) {
+              console.log('Host setting local state for coin drop');
+              setRoundWinner(winner);
+              setShowScoring(false);
+              setWaitingForCoinDrop(true);
+            }
+            
+            // Then broadcast so other players also get it
             await channelRef.current?.send({
               type: 'broadcast',
               event: 'coin_drop_wait',
               payload: { winner }
             });
-            
-            // Update local state immediately for host (since they don't receive their own broadcast)
-            setRoundWinner(winner);
-            setShowScoring(false);
-            setWaitingForCoinDrop(true);
           }, 3000);
         } else {
           setTimeout(() => nextQuestion(), 3000);
@@ -966,6 +1001,11 @@ export default function Connect4Page({ params }: Connect4PageProps) {
           payload: {}
         });
         
+        // Host auto-advances immediately (don't wait for broadcast echo)
+        setWaitingForCoinDrop(false);
+        setCanDropCoin(false);
+        setTimeout(() => nextQuestion(), 2000);
+        
         break;
       }
     }
@@ -1007,6 +1047,12 @@ export default function Connect4Page({ params }: Connect4PageProps) {
     
     // Immediately disable further drops
     setCanDropCoin(false);
+    
+    // For non-host players, also clear the waiting state and let board_update sync it
+    if (!isHost) {
+      setWaitingForCoinDrop(false);
+      console.log('Non-host player cleared waiting state, waiting for host to broadcast new_question');
+    }
     
     // Broadcast coin drop to all players
     await channelRef.current?.send({
@@ -1066,33 +1112,46 @@ export default function Connect4Page({ params }: Connect4PageProps) {
 
   const nextQuestion = async () => {
     const nextIndex = questionIndex + 1;
-    if (nextIndex < flashcards.length && isHost) {
-      setQuestionIndex(nextIndex);
-      setCurrentQuestion(flashcards[nextIndex]);
-      setPlayer1Answer('');
-      setPlayer2Answer('');
-      setPlayer1Submitted(false);
-      setPlayer2Submitted(false);
-      setShowScoring(false);
-      setRoundWinner(null);
-      setIsSubmitting(false);
-      setPlayer1Score(0);
-      setPlayer2Score(0);
-      setPlayer1Analysis([]);
-      setPlayer2Analysis([]);
-      setWaitingForCoinDrop(false);
-      setCanDropCoin(false);
-      setFirstSubmitter(null);
-      
-      // Broadcast new question to all players
-      await channelRef.current?.send({
-        type: 'broadcast',
-        event: 'new_question',
-        payload: { question: flashcards[nextIndex], index: nextIndex }
-      });
-      
-      startTimer();
+    console.log('nextQuestion called:', { nextIndex, flashcardsLength: flashcards.length, isHost, questionIndex });
+    
+    if (nextIndex >= flashcards.length) {
+      console.log('No more questions, game over');
+      return;
     }
+    
+    if (!isHost) {
+      console.log('nextQuestion called but isHost is false, not executing');
+      return;
+    }
+    
+    console.log('Advancing to question', nextIndex);
+    setQuestionIndex(nextIndex);
+    setCurrentQuestion(flashcards[nextIndex]);
+    setPlayer1Answer('');
+    setPlayer2Answer('');
+    setPlayer1Submitted(false);
+    setPlayer2Submitted(false);
+    setShowScoring(false);
+    setRoundWinner(null);
+    setIsSubmitting(false);
+    setPlayer1Score(0);
+    setPlayer2Score(0);
+    setPlayer1Analysis([]);
+    setPlayer2Analysis([]);
+    setWaitingForCoinDrop(false);
+    setCanDropCoin(false);
+    setFirstSubmitter(null);
+    
+    // Broadcast new question to all players
+    console.log('Broadcasting new_question:', flashcards[nextIndex]);
+    const result = await channelRef.current?.send({
+      type: 'broadcast',
+      event: 'new_question',
+      payload: { question: flashcards[nextIndex], index: nextIndex }
+    });
+    console.log('Broadcast result:', result);
+    
+    startTimer();
   };
 
   const startGame = async () => {
