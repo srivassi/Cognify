@@ -1557,6 +1557,7 @@ export default function Connect4Page({ params }: Connect4PageProps) {
                       ))}
                     </div>
 
+
                 <div className="text-center">
                   {isHost ? (
                     <button 
@@ -1594,17 +1595,17 @@ export default function Connect4Page({ params }: Connect4PageProps) {
               </>
             )}
           </div>
-
-            <div className="hanging-sign">
-              <h3 className="text-lg font-bold text-center text-gray-700 mb-4 uppercase tracking-wide">How to Play</h3>
-              <ul className="text-sm text-gray-600 space-y-2 font-medium text-center">
-                <li>Players take turns answering flashcard questions</li>
-                <li>Correct answers let you drop a piece in Connect4</li>
-                <li>First to get 4 in a row wins the game!</li>
-                <li>Wrong answers give the turn to the next player</li>
-              </ul>
-            </div>
-          </div>
+        </div>
+        <div className="hanging-sign">
+          <h3 className="text-lg font-bold text-center text-gray-700 mb-4 uppercase tracking-wide">How to Play</h3>
+          <ul className="text-sm text-gray-600 space-y-2 font-medium text-center">
+            <li>Players take turns answering flashcard questions</li>
+            <li>Correct answers let you drop a piece in Connect4</li>
+            <li>First to get 4 in a row wins the game!</li>
+            <li>Wrong answers give the turn to the next player</li>
+          </ul>
+        </div>
+      </div>
         )}
       </div>
     </div>
