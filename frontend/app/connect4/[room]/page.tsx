@@ -58,6 +58,7 @@ export default function Connect4Page({ params }: Connect4PageProps) {
   const [showConfetti, setShowConfetti] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const channelRef = useRef<any>(null);
+  const coinDropTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [roundWinner, setRoundWinner] = useState<number | null>(null);
   const [firstSubmitter, setFirstSubmitter] = useState<number | null>(null);
 
@@ -194,6 +195,13 @@ export default function Connect4Page({ params }: Connect4PageProps) {
         setTimer(payload.payload.timer);
       })
       .on('broadcast', { event: 'coin_drop' }, (payload) => {
+        console.log('Received coin_drop broadcast:', payload.payload);
+        // Clear any local fallback timer since a drop request arrived
+        if (coinDropTimeoutRef.current) {
+          clearTimeout(coinDropTimeoutRef.current);
+          coinDropTimeoutRef.current = null;
+        }
+
         if (isHost) {
           dropCoin(payload.payload.player, payload.payload.col);
         }
@@ -348,8 +356,20 @@ export default function Connect4Page({ params }: Connect4PageProps) {
         }
       })
       .on('broadcast', { event: 'coin_dropped' }, () => {
+        console.log('Received coin_dropped broadcast');
         setWaitingForCoinDrop(false);
         setCanDropCoin(false);
+
+        // Clear any fallback timer
+        if (coinDropTimeoutRef.current) {
+          clearTimeout(coinDropTimeoutRef.current);
+          coinDropTimeoutRef.current = null;
+        }
+
+        // Host loads next question after coin drop completes
+        if (isHost) {
+          setTimeout(() => nextQuestion(), 2000);
+        }
       })
       .subscribe();
 
@@ -945,10 +965,7 @@ export default function Connect4Page({ params }: Connect4PageProps) {
           event: 'coin_dropped',
           payload: {}
         });
-        
-        if (!winner) {
-          setTimeout(() => nextQuestion(), 2000);
-        }
+
         
         break;
       }
@@ -998,6 +1015,23 @@ export default function Connect4Page({ params }: Connect4PageProps) {
       event: 'coin_drop',
       payload: { player: roundWinner, col }
     });
+    // Start a fallback timer: if no coin_dropped arrives within 5s, ask host to advance
+    if (coinDropTimeoutRef.current) {
+      clearTimeout(coinDropTimeoutRef.current);
+      coinDropTimeoutRef.current = null;
+    }
+    coinDropTimeoutRef.current = setTimeout(async () => {
+      console.warn('No coin_dropped received within timeout, requesting host to advance');
+      try {
+        await channelRef.current?.send({
+          type: 'broadcast',
+          event: 'coin_drop_wait',
+          payload: { winner: null }
+        });
+      } catch (err) {
+        console.error('Failed to send fallback coin_drop_wait:', err);
+      }
+    }, 5000);
     
     if (isHost) {
       dropCoin(roundWinner, col);
