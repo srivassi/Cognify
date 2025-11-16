@@ -97,7 +97,6 @@ export default function Connect4Page({ params }: Connect4PageProps) {
 
     loadPlayers();
 
-    console.log('SUBSCRIBING TO CHANNEL:', `room-${room.id}-players`, 'isHost:', isHost);
     const playersSubscription = supabase
       .channel(`room-${room.id}-players`);
     
@@ -132,7 +131,6 @@ export default function Connect4Page({ params }: Connect4PageProps) {
         setGameStarted(true);
       })
       .on('broadcast', { event: 'new_question' }, (payload) => {
-        console.log('New question - complete reset for both players, isHost:', isHost, 'index:', payload.payload.index);
         // COMPLETE CLEAN SLATE - No trace of previous question
         setCurrentQuestion(payload.payload.question);
         setQuestionIndex(payload.payload.index);
@@ -152,22 +150,17 @@ export default function Connect4Page({ params }: Connect4PageProps) {
         setShowConfetti(false);
         setFirstSubmitter(null);
         setTimer(20);
-        console.log('Reset complete, waiting state cleared');
         
         // Both host and non-host need to show timer reset
         if (isHost) {
-          console.log('Host restarting timer');
           startTimer();
         } else {
-          console.log('Non-host player received new question, timer reset to 20');
           // Non-host just resets the visual timer, host controls the actual countdown
         }
       })
       .on('broadcast', { event: 'board_update' }, (payload) => {
-        console.log('Board update - both players sync:', payload.payload);
         setBoard(payload.payload.board);
         if (payload.payload.winner) {
-          console.log('CONNECT 4 WINNER - both players see at same time:', payload.payload.winner);
           setGameWinner(payload.payload.winner);
           setShowConfetti(true);
           // Auto redirect to dashboard after celebration
@@ -176,9 +169,7 @@ export default function Connect4Page({ params }: Connect4PageProps) {
           }, 4000);
         }
       })
-      .on('broadcast', { event: 'scoring_update' }, (payload) => {
-        console.log('PLAYER', userPlayerNumber, 'Received scoring update:', payload.payload);
-        // PERFECT SYNC - All players get results at EXACT same time
+      .on('broadcast', { event: 'scoring_update' }, (payload) => {        
         setIsSubmitting(false);
         setShowScoring(true);
         setPlayer1Score(payload.payload.player1Score);
@@ -205,8 +196,6 @@ export default function Connect4Page({ params }: Connect4PageProps) {
         setTimer(payload.payload.timer);
       })
       .on('broadcast', { event: 'coin_drop' }, (payload) => {
-        console.log('Received coin_drop broadcast:', payload.payload);
-        // Clear any local fallback timer since a drop request arrived
         if (coinDropTimeoutRef.current) {
           clearTimeout(coinDropTimeoutRef.current);
           coinDropTimeoutRef.current = null;
@@ -218,15 +207,12 @@ export default function Connect4Page({ params }: Connect4PageProps) {
       })
       .on('broadcast', { event: 'coin_drop_wait' }, (payload) => {
         const w = payload.payload.winner;
-        console.log('coin_drop_wait received, winner:', w, 'userPlayerNumber:', userPlayerNumber, 'isHost:', isHost);
         
         if (!w) {
-          console.log('No winner in coin_drop_wait, advancing to next question');
           if (isHost) nextQuestion();
           return;
         }
 
-        console.log('Setting up coin drop waiting state - winner:', w, 'userPlayerNumber:', userPlayerNumber);
         setRoundWinner(w);
         setShowScoring(false);
         setWaitingForCoinDrop(true);
@@ -240,28 +226,20 @@ export default function Connect4Page({ params }: Connect4PageProps) {
         }
       })
       .on('broadcast', { event: 'freeze_game' }, (payload) => {
-        console.log('Game frozen by other player, isHost:', isHost, 'payload:', payload.payload);
         
-        // Stop timer
         if (timerRef.current) {
           clearInterval(timerRef.current);
           timerRef.current = null;
         }
         
-        // Freeze inputs and show loader
         setPlayer1Submitted(true);
         setPlayer2Submitted(true);
         setIsSubmitting(true);
         
-        // If this player is host, process scoring immediately using broadcast data
+        
         const questionData = payload.payload.question;
-        console.log('Checking scoring conditions - isHost:', isHost, 'questionData:', !!questionData);
-        // ONLY process if host hasn't already processed via submitAnswers
         if (isHost && questionData && !showScoring) {
-          console.log('Host received freeze, processing scoring now');
-          // Call scoring directly without submitAnswers to avoid isSubmitting guard
           setTimeout(async () => {
-            console.log('Starting API call for scoring...');
             try {
               const response = await fetch(`${API_URL}/score-answers`, {
                 method: 'POST',
@@ -273,18 +251,13 @@ export default function Connect4Page({ params }: Connect4PageProps) {
                   player2_answer: payload.payload.player2Answer
                 })
               });
-              console.log('API response received:', response.status);
               
               const result = await response.json();
-              console.log('Scoring result:', result);
-              
-              // Handle both success and error cases
+            
               let finalResult;
               if (result.status === 'success') {
                 finalResult = result;
               } else {
-                console.log('API error, using fallback scoring');
-                // Fallback scoring when AI fails
                 finalResult = {
                   player1_score: 60,
                   player2_score: 40,
@@ -299,14 +272,10 @@ export default function Connect4Page({ params }: Connect4PageProps) {
               } else if (finalResult.player2_score > finalResult.player1_score) {
                 winner = 2;
               } else {
-                // Tie - winner is whoever submitted first
                 winner = payload.payload.firstSubmitter || 1;
-                console.log('Tie game - first submitter wins:', winner);
               }
               
-              console.log('Broadcasting scoring results...');
-              
-              // Update local state immediately for the host
+           
               setIsSubmitting(false);
               setShowScoring(true);
               setPlayer1Score(finalResult.player1_score);
@@ -316,7 +285,6 @@ export default function Connect4Page({ params }: Connect4PageProps) {
               setRoundWinner(winner);
               setCurrentQuestion(questionData);
               
-              // Broadcast to other players
               const broadcastResult = await channelRef.current?.send({
                 type: 'broadcast',
                 event: 'scoring_update',
@@ -329,13 +297,10 @@ export default function Connect4Page({ params }: Connect4PageProps) {
                   currentQuestion: questionData
                 }
               });
-              console.log('Broadcast sent:', broadcastResult);
               
               if (winner) {
                 setTimeout(async () => {
-                  console.log('Broadcasting coin_drop_wait for winner (from freeze handler):', winner);
                   
-                  // Set state for host immediately (before broadcast)
                   setRoundWinner(winner);
                   setShowScoring(false);
                   setWaitingForCoinDrop(true);
@@ -353,7 +318,6 @@ export default function Connect4Page({ params }: Connect4PageProps) {
               }
             } catch (error) {
               console.error('Scoring API failed:', error);
-              // Fallback: Show dummy results to unfreeze game
               try {
                 await channelRef.current?.send({
                   type: 'broadcast',
@@ -375,20 +339,15 @@ export default function Connect4Page({ params }: Connect4PageProps) {
         }
       })
       .on('broadcast', { event: 'coin_dropped' }, () => {
-        console.log('Received coin_dropped broadcast, isHost:', isHost);
         setWaitingForCoinDrop(false);
         setCanDropCoin(false);
 
-        // Clear any fallback timer
         if (coinDropTimeoutRef.current) {
           clearTimeout(coinDropTimeoutRef.current);
           coinDropTimeoutRef.current = null;
         }
 
-        // Host already advances in dropCoin() function
-        // Non-host players just wait for new_question broadcast
         if (!isHost) {
-          console.log('Non-host player waiting for next question broadcast from host');
         }
       })
       .subscribe();
@@ -442,7 +401,6 @@ export default function Connect4Page({ params }: Connect4PageProps) {
         setCurrentUserId(session.user.id);
         const player = players.find(p => p.user_id === session.user.id);
         if (player) {
-          console.log('Setting userPlayerNumber to:', player.player_number, 'for user:', session.user.id);
           setUserPlayerNumber(player.player_number);
         }
       }
@@ -457,13 +415,11 @@ export default function Connect4Page({ params }: Connect4PageProps) {
       return;
     }
     const eligible = roundWinner === userPlayerNumber;
-    console.log("Rechecking coin-drop permission:", { roundWinner, userPlayerNumber, eligible, waitingForCoinDrop });
     setCanDropCoin(eligible);
   }, [userPlayerNumber, roundWinner, waitingForCoinDrop]);
 
   useEffect(() => {
     if (gameStarted) {
-      console.log('Game started, loading flashcards, isHost:', isHost);
       loadFlashcards(isHost);
     }
   }, [gameStarted, room]);
@@ -732,9 +688,7 @@ export default function Connect4Page({ params }: Connect4PageProps) {
 
   const loadFlashcards = async (hostStatus?: boolean) => {
     const isHostNow = hostStatus !== undefined ? hostStatus : isHost;
-    console.log('loadFlashcards called, room.deck_id:', room?.deck_id, 'isHost:', isHostNow);
     if (!room?.deck_id) {
-      console.log('No deck_id, returning');
       return;
     }
     
@@ -745,17 +699,14 @@ export default function Connect4Page({ params }: Connect4PageProps) {
         .eq('set_id', room.deck_id)
         .order('order_index');
       
-      console.log('Fetched flashcards:', flashcardsData?.length, 'error:', error);
       
       if (flashcardsData && flashcardsData.length > 0) {
         // Only host shuffles and broadcasts questions
         if (isHostNow) {
           const shuffled = [...flashcardsData].sort(() => Math.random() - 0.5);
-          console.log('Host shuffled flashcards, count:', shuffled.length);
           setFlashcards(shuffled);
           setCurrentQuestion(shuffled[0]);
           
-          // Broadcast first question to all players
           await supabase
             .channel(`room-${room.id}-players`)
             .send({
@@ -764,11 +715,9 @@ export default function Connect4Page({ params }: Connect4PageProps) {
               payload: { question: shuffled[0], index: 0 }
             });
         } else {
-          console.log('Non-host player setting flashcards, count:', flashcardsData.length);
           setFlashcards(flashcardsData);
         }
       } else {
-        console.log('No flashcard data returned');
       }
     } catch (error) {
       console.error('Error loading flashcards:', error);
@@ -776,9 +725,8 @@ export default function Connect4Page({ params }: Connect4PageProps) {
   };
 
   const startTimer = () => {
-    if (!isHost) return; // Only host controls timer
+    if (!isHost) return;
     
-    // Clear any existing timer
     if (timerRef.current) {
       clearInterval(timerRef.current);
     }
@@ -788,7 +736,6 @@ export default function Connect4Page({ params }: Connect4PageProps) {
       setTimer(prev => {
         const newTime = prev - 1;
         
-        // Broadcast timer to all players
         supabase
           .channel(`room-${room.id}-players`)
           .send({
@@ -802,7 +749,6 @@ export default function Connect4Page({ params }: Connect4PageProps) {
             clearInterval(timerRef.current);
             timerRef.current = null;
           }
-          // SIMPLE: Just call submitAnswers when timer ends
           if (isHost) submitAnswers();
           return 0;
         }
@@ -813,7 +759,6 @@ export default function Connect4Page({ params }: Connect4PageProps) {
 
   const handleKeyPress = async (e: React.KeyboardEvent, player: number) => {
     if (e.key === 'Enter' && !isSubmitting && currentQuestion) {
-      // SIMPLE: Just call submitAnswers directly
       submitAnswers();
     }
   };
@@ -825,7 +770,6 @@ export default function Connect4Page({ params }: Connect4PageProps) {
       setPlayer2Answer(value);
     }
     
-    // Broadcast answer to all players
     await supabase
       .channel(`room-${room.id}-players`)
       .send({
@@ -837,32 +781,25 @@ export default function Connect4Page({ params }: Connect4PageProps) {
 
   const submitAnswers = async () => {
     if (!currentQuestion || isSubmitting) {
-      console.log('submitAnswers blocked - already submitting or no question');
       return;
     }
     
-    console.log('submitAnswers called by player:', userPlayerNumber, 'isHost:', isHost);
     
-    // FREEZE GAME STATE IMMEDIATELY FOR ALL PLAYERS
     setIsSubmitting(true);
     setPlayer1Submitted(true);
     setPlayer2Submitted(true);
     
-    // Stop timer
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
     
-    // Track who submitted first
     if (!firstSubmitter) {
       setFirstSubmitter(userPlayerNumber || 1);
-      console.log('First submitter:', userPlayerNumber);
     }
     
     // Broadcast freeze state to OTHER players with question data
     if (channelRef.current) {
-      console.log('Sending freeze_game broadcast with question data...');
       const result = await channelRef.current.send({
         type: 'broadcast',
         event: 'freeze_game',
@@ -873,27 +810,24 @@ export default function Connect4Page({ params }: Connect4PageProps) {
           firstSubmitter: userPlayerNumber || 1
         }
       });
-      console.log('Freeze broadcast result:', result);
     } else {
       console.error('No channel reference available!');
     }
     
     // Only host processes scoring - add extra guard
     if (!isHost) {
-      console.log('Non-host submitted, waiting for host to process scoring');
       return;
     }
     
     // Extra guard to prevent duplicate host processing
     if (showScoring) {
-      console.log('Host already processed scoring for this question');
       return;
     }
     
-    console.log('Host processing scoring...', { currentQuestion, player1Answer, player2Answer });
     
     try {
-      const response = await fetch('http://localhost:8000/score-answers', {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/.netlify/functions';
+      const response = await fetch(`${apiUrl}/score-answers`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -905,7 +839,6 @@ export default function Connect4Page({ params }: Connect4PageProps) {
       });
       
       const result = await response.json();
-      console.log('Scoring result:', result);
       
       if (result.status === 'success') {
         let winner = null;
@@ -914,19 +847,11 @@ export default function Connect4Page({ params }: Connect4PageProps) {
         } else if (result.player2_score > result.player1_score) {
           winner = 2;
         } else {
-          // Tie - winner is whoever submitted first
           winner = firstSubmitter || 1;
-          console.log('Tie game - first submitter wins:', winner);
         }
         
-        // Broadcast scoring results to all players
-        console.log('Broadcasting scoring results:', {
-          player1Score: result.player1_score,
-          player2Score: result.player2_score,
-          roundWinner: winner
-        });
         
-        // Broadcast to ALL players using the same channel
+        
         await channelRef.current?.send({
           type: 'broadcast',
           event: 'scoring_update',
@@ -940,14 +865,10 @@ export default function Connect4Page({ params }: Connect4PageProps) {
           }
         });
         
-        // Broadcast coin drop wait state
         if (winner) {
           setTimeout(async () => {
-            console.log('Broadcasting coin_drop_wait for winner (from submitAnswers):', winner);
             
-            // Update local state for host FIRST before broadcasting
             if (isHost) {
-              console.log('Host setting local state for coin drop');
               setRoundWinner(winner);
               setShowScoring(false);
               setWaitingForCoinDrop(true);
@@ -965,7 +886,6 @@ export default function Connect4Page({ params }: Connect4PageProps) {
         }
       }
     } catch (error) {
-      // Handle error silently
     }
   };
 
@@ -985,7 +905,6 @@ export default function Connect4Page({ params }: Connect4PageProps) {
           setGameWinner(player);
         }
         
-        // Broadcast board update to all players
         await channelRef.current?.send({
           type: 'broadcast',
           event: 'board_update',
@@ -995,14 +914,12 @@ export default function Connect4Page({ params }: Connect4PageProps) {
         setWaitingForCoinDrop(false);
         setCanDropCoin(false);
         
-        // Broadcast that coin drop is complete
         await channelRef.current?.send({
           type: 'broadcast',
           event: 'coin_dropped',
           payload: {}
         });
         
-        // Host auto-advances immediately (don't wait for broadcast echo)
         setWaitingForCoinDrop(false);
         setCanDropCoin(false);
         setTimeout(() => nextQuestion(), 2000);
@@ -1013,7 +930,6 @@ export default function Connect4Page({ params }: Connect4PageProps) {
   };
   
   const handleColumnClick = async (col: number) => {
-    console.log('Column clicked:', col, {
       waitingForCoinDrop,
       roundWinner,
       userPlayerNumber,
@@ -1022,37 +938,28 @@ export default function Connect4Page({ params }: Connect4PageProps) {
     });
     
     if (!waitingForCoinDrop || !roundWinner) {
-      console.log('Not waiting for coin drop or no winner');
       return;
     }
     
     // Check if this player is the winner
     if (roundWinner !== userPlayerNumber) {
-      console.log('Player is not the winner');
       return;
     }
     
     // Check if player can drop coin
     if (!canDropCoin) {
-      console.log('Player cannot drop coin yet');
       return;
     }
     
-    // Check if column is full
     if (board[0][col]) {
-      console.log('Column is full');
       return;
     }
 
-    console.log('Player', userPlayerNumber, 'dropping coin in column', col);
     
-    // Immediately disable further drops
     setCanDropCoin(false);
     
-    // For non-host players, also clear the waiting state and let board_update sync it
     if (!isHost) {
       setWaitingForCoinDrop(false);
-      console.log('Non-host player cleared waiting state, waiting for host to broadcast new_question');
     }
     
     // Broadcast coin drop to all players
@@ -1113,19 +1020,15 @@ export default function Connect4Page({ params }: Connect4PageProps) {
 
   const nextQuestion = async () => {
     const nextIndex = questionIndex + 1;
-    console.log('nextQuestion called:', { nextIndex, flashcardsLength: flashcards.length, isHost, questionIndex });
     
     if (nextIndex >= flashcards.length) {
-      console.log('No more questions, game over');
       return;
     }
     
     if (!isHost) {
-      console.log('nextQuestion called but isHost is false, not executing');
       return;
     }
     
-    console.log('Advancing to question', nextIndex);
     setQuestionIndex(nextIndex);
     setCurrentQuestion(flashcards[nextIndex]);
     setPlayer1Answer('');
@@ -1143,14 +1046,11 @@ export default function Connect4Page({ params }: Connect4PageProps) {
     setCanDropCoin(false);
     setFirstSubmitter(null);
     
-    // Broadcast new question to all players
-    console.log('Broadcasting new_question:', flashcards[nextIndex]);
     const result = await channelRef.current?.send({
       type: 'broadcast',
       event: 'new_question',
       payload: { question: flashcards[nextIndex], index: nextIndex }
     });
-    console.log('Broadcast result:', result);
     
     startTimer();
   };

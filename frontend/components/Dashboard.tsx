@@ -207,7 +207,8 @@ const Dashboard = () => {
       const formData = new FormData();
       formData.append('file', uploadedFile);
       
-      const response = await fetch('http://localhost:8000/process-pdf', {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/.netlify/functions';
+      const response = await fetch(`${apiUrl}/process-pdf`, {
         method: 'POST',
         body: formData,
       });
