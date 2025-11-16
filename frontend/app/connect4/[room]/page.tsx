@@ -241,7 +241,7 @@ export default function Connect4Page({ params }: Connect4PageProps) {
         if (isHost && questionData && !showScoring) {
           setTimeout(async () => {
             try {
-              const response = await fetch(`${API_URL}/score-answers`, {
+              const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/score-answers`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
