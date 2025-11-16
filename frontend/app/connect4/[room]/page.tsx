@@ -898,16 +898,16 @@ export default function Connect4Page({ params }: Connect4PageProps) {
           setTimeout(async () => {
             console.log('Broadcasting coin_drop_wait for winner (from submitAnswers):', winner);
             
-            // Update local state immediately for host
-            setRoundWinner(winner);
-            setShowScoring(false);
-            setWaitingForCoinDrop(true);
-            
             await channelRef.current?.send({
               type: 'broadcast',
               event: 'coin_drop_wait',
               payload: { winner }
             });
+            
+            // Update local state immediately for host (since they don't receive their own broadcast)
+            setRoundWinner(winner);
+            setShowScoring(false);
+            setWaitingForCoinDrop(true);
           }, 3000);
         } else {
           setTimeout(() => nextQuestion(), 3000);
