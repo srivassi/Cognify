@@ -4,7 +4,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, Copy, Users } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
-import { API_URL } from '@/lib/config';
 
 interface Player {
   id: string;
@@ -930,6 +929,7 @@ export default function Connect4Page({ params }: Connect4PageProps) {
   };
   
   const handleColumnClick = async (col: number) => {
+    console.log('Column clicked:', col, {
       waitingForCoinDrop,
       roundWinner,
       userPlayerNumber,
