@@ -97,13 +97,13 @@ export default function Connect4Page({ params }: Connect4PageProps) {
     loadPlayers();
 
     const playersSubscription = supabase
-      .channel(`room-${room.id}-players`);
+      .channel(`room-${room?.id}-players`);
     
     channelRef.current = playersSubscription;
     
     playersSubscription
       .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'connect4_players', filter: `room_id=eq.${room.id}` },
+        { event: '*', schema: 'public', table: 'connect4_players', filter: `room_id=eq.${room?.id}` },
         (payload) => {
           if (payload.eventType === 'DELETE') {
             loadPlayers();
@@ -352,9 +352,9 @@ export default function Connect4Page({ params }: Connect4PageProps) {
       .subscribe();
 
     const roomSubscription = supabase
-      .channel(`room-${room.id}-status`)
+      .channel(`room-${room?.id}-status`)
       .on('postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'connect4_rooms', filter: `id=eq.${room.id}` },
+        { event: 'UPDATE', schema: 'public', table: 'connect4_rooms', filter: `id=eq.${room?.id}` },
         (payload) => {
           if (payload.new.status === 'playing') {
             setGameStarted(true);
@@ -575,11 +575,11 @@ export default function Connect4Page({ params }: Connect4PageProps) {
       await supabase
         .from('connect4_players')
         .delete()
-        .eq('room_id', room.id)
+        .eq('room_id', room?.id)
         .eq('user_id', session.user.id);
 
       await supabase
-        .channel(`room-${room.id}-players`)
+        .channel(`room-${room?.id}-players`)
         .send({
           type: 'broadcast',
           event: 'player_left',
@@ -652,7 +652,7 @@ export default function Connect4Page({ params }: Connect4PageProps) {
       const { data: playersData } = await supabase
         .from('connect4_players')
         .select('*')
-        .eq('room_id', room.id)
+        .eq('room_id', room?.id)
         .order('player_number');
 
       if (playersData) {
@@ -736,7 +736,7 @@ export default function Connect4Page({ params }: Connect4PageProps) {
         const newTime = prev - 1;
         
         supabase
-          .channel(`room-${room.id}-players`)
+          .channel(`room-${room?.id}-players`)
           .send({
             type: 'broadcast',
             event: 'timer_sync',
@@ -1062,7 +1062,7 @@ export default function Connect4Page({ params }: Connect4PageProps) {
       const { error: roomError } = await supabase
         .from('connect4_rooms')
         .update({ status: 'playing' })
-        .eq('id', room.id);
+        .eq('id', room?.id);
 
       if (roomError) return;
       
@@ -1506,8 +1506,6 @@ export default function Connect4Page({ params }: Connect4PageProps) {
             <li>Wrong answers give the turn to the next player</li>
           </ul>
         </div>
-      </div>
-        )}
       </div>
     </div>
   );
