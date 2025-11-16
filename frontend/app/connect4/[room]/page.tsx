@@ -707,7 +707,7 @@ export default function Connect4Page({ params }: Connect4PageProps) {
           setCurrentQuestion(shuffled[0]);
           
           await supabase
-            .channel(`room-${room.id}-players`)
+            .channel(`room-${room?.id}-players`)
             .send({
               type: 'broadcast',
               event: 'new_question',
@@ -770,7 +770,7 @@ export default function Connect4Page({ params }: Connect4PageProps) {
     }
     
     await supabase
-      .channel(`room-${room.id}-players`)
+      .channel(`room-${room?.id}-players`)
       .send({
         type: 'broadcast',
         event: 'answer_update',
@@ -1077,8 +1077,6 @@ export default function Connect4Page({ params }: Connect4PageProps) {
       // Handle error silently
     }
   };
-
-
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-purple-100">
@@ -1458,45 +1456,46 @@ export default function Connect4Page({ params }: Connect4PageProps) {
                       ))}
                     </div>
 
-
-                <div className="text-center">
-                  {isHost ? (
-                    <button 
-                      onClick={startGame}
-                      disabled={players.length < 2}
-                      className="px-8 py-3 bg-gradient-to-r from-pink-500 to-pink-600 text-white rounded-lg hover:from-pink-600 hover:to-pink-700 transition-all duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Start Game
-                    </button>
-                  ) : hasJoined ? (
-                    <div className="text-gray-500">
-                      Waiting for host to start the game...
+                    <div className="text-center">
+                      {isHost ? (
+                        <button 
+                          onClick={startGame}
+                          disabled={players.length < 2}
+                          className="px-8 py-3 bg-gradient-to-r from-pink-500 to-pink-600 text-white rounded-lg hover:from-pink-600 hover:to-pink-700 transition-all duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Start Game
+                        </button>
+                      ) : hasJoined ? (
+                        <div className="text-gray-500">
+                          Waiting for host to start the game...
+                        </div>
+                      ) : (
+                        <button 
+                          onClick={async () => {
+                            if (room) {
+                              const { data: { session } } = await supabase.auth.getSession();
+                              if (session) {
+                                await joinRoom(room.id, session.user.id);
+                                // Force reload players on both screens
+                                await loadPlayers();
+                              }
+                            }
+                          }}
+                          className="px-8 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200 font-semibold"
+                        >
+                          Join Game
+                        </button>
+                      )}
+                      <p className="text-xs text-gray-500 mt-2">
+                        {players.length >= 2 ? 'Ready to start!' : `Need ${2 - players.length} more player(s)`}
+                      </p>
                     </div>
-                  ) : (
-                    <button 
-                      onClick={async () => {
-                        if (room) {
-                          const { data: { session } } = await supabase.auth.getSession();
-                          if (session) {
-                            await joinRoom(room.id, session.user.id);
-                            // Force reload players on both screens
-                            await loadPlayers();
-                          }
-                        }
-                      }}
-                      className="px-8 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200 font-semibold"
-                    >
-                      Join Game
-                    </button>
-                  )}
-                  <p className="text-xs text-gray-500 mt-2">
-                    {players.length >= 2 ? 'Ready to start!' : `Need ${2 - players.length} more player(s)`}
-                  </p>
-                </div>
-              </>
-            )}
+                  </>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
+        )}
         <div className="hanging-sign">
           <h3 className="text-lg font-bold text-center text-gray-700 mb-4 uppercase tracking-wide">How to Play</h3>
           <ul className="text-sm text-gray-600 space-y-2 font-medium text-center">
