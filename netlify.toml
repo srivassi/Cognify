@@ -4,7 +4,7 @@
   # Build from the frontend directory since that's what Netlify will serve
   base = "frontend"
   command = "npm run build"
-  publish = "frontend/.next"
+  publish = ".next"
 
 # Environment variables for the build
 [build.environment]
