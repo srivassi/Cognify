@@ -129,7 +129,7 @@ export default function DeckPage({ params }: { params: Promise<{ id: string }> }
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-purple-100">
+    <div className="min-h-screen">
       <div className="max-w-4xl mx-auto p-8">
         <div className="flex items-center mb-6">
           <button 
@@ -138,46 +138,46 @@ export default function DeckPage({ params }: { params: Promise<{ id: string }> }
           >
             <ArrowLeft size={24} className="text-purple-600" />
           </button>
-          <h1 className="text-3xl font-bold text-gray-800">{deckTitle}</h1>
+          <h1 className="text-2xl font-bold text-blue-800 uppercase">{deckTitle}</h1>
         </div>
 
         <div className="grid grid-cols-3 gap-4 mb-8">
-          <button className="px-6 py-3 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg hover:from-purple-600 hover:to-purple-700 transition-all duration-200 flex items-center justify-center space-x-2 shadow-md">
-            <Edit size={18} />
-            <span className="font-medium">Edit</span>
+          <button className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white pixel-button flex items-center justify-center space-x-2 text-sm">
+            <Edit size={16} />
+            <span>EDIT</span>
           </button>
           <button 
             onClick={startJeopardy}
-            className="px-6 py-3 bg-gradient-to-r from-pink-500 to-pink-600 text-white rounded-lg hover:from-pink-600 hover:to-pink-700 transition-all duration-200 flex items-center justify-center space-x-2 shadow-md"
+            className="px-6 py-3 bg-gradient-to-r from-green-400 to-emerald-500 text-white pixel-button flex items-center justify-center space-x-2 text-sm"
           >
-            <Gamepad2 size={18} />
-            <span className="font-medium">Jeopardy</span>
+            <Gamepad2 size={16} />
+            <span>JEOPARDY</span>
           </button>
           <button 
             onClick={startConnect4}
-            className="px-6 py-3 bg-gradient-to-r from-purple-400 to-pink-400 text-white rounded-lg hover:from-purple-500 hover:to-pink-500 transition-all duration-200 flex items-center justify-center space-x-2 shadow-md"
+            className="px-6 py-3 bg-gradient-to-r from-pink-400 to-purple-500 text-white pixel-button flex items-center justify-center space-x-2 text-sm"
           >
-            <Grid3x3 size={18} />
-            <span className="font-medium">Connect4</span>
+            <Grid3x3 size={16} />
+            <span>CONNECT4</span>
           </button>
         </div>
 
         <div className="grid grid-cols-3 gap-4 mb-8">
-          <div className="bg-white p-4 rounded-lg shadow-sm border border-purple-100">
-            <div className="text-2xl font-bold text-purple-600">{flashcards.length}</div>
-            <div className="text-sm text-gray-500">Total Cards</div>
+          <div className="pixel-card p-4">
+            <div className="text-xl font-bold text-purple-600">{flashcards.length}</div>
+            <div className="text-xs text-gray-500 uppercase">TOTAL CARDS</div>
           </div>
-          <div className="bg-white p-4 rounded-lg shadow-sm border border-purple-100">
-            <div className="text-2xl font-bold text-green-600">{masteredCount}</div>
-            <div className="text-sm text-gray-500">Mastered</div>
+          <div className="pixel-card p-4">
+            <div className="text-xl font-bold text-green-600">{masteredCount}</div>
+            <div className="text-xs text-gray-500 uppercase">MASTERED</div>
           </div>
-          <div className="bg-white p-4 rounded-lg shadow-sm border border-purple-100">
-            <div className="text-2xl font-bold text-orange-600">{reviewCount}</div>
-            <div className="text-sm text-gray-500">Need Review</div>
+          <div className="pixel-card p-4">
+            <div className="text-xl font-bold text-orange-600">{reviewCount}</div>
+            <div className="text-xs text-gray-500 uppercase">NEED REVIEW</div>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-lg p-8 min-h-96">
+        <div className="pixel-card p-8 min-h-96">
           {loading ? (
             <div className="text-center py-12">
               <div className="text-lg text-gray-600">Loading flashcards...</div>
@@ -189,11 +189,11 @@ export default function DeckPage({ params }: { params: Promise<{ id: string }> }
           ) : (
             <>
               <div className="text-center mb-6">
-                <span className="text-sm text-gray-500">Card {currentCard + 1} of {flashcards.length}</span>
+                <span className="text-xs text-gray-500 uppercase">CARD {currentCard + 1} OF {flashcards.length}</span>
               </div>
               
               <div 
-                className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg p-8 min-h-64 flex items-center justify-center cursor-pointer transition-all duration-500 hover:shadow-md"
+                className="bg-gradient-to-br from-purple-50 to-pink-50 pixel-card p-8 min-h-64 flex items-center justify-center cursor-pointer"
                 onClick={() => setShowAnswer(!showAnswer)}
                 style={{
                   transform: `${showAnswer ? 'rotateY(180deg)' : 'rotateY(0deg)'} ${isSliding ? `translateX(${slideDirection === 'left' ? '-100%' : '100%'})` : 'translateX(0)'}`,
@@ -207,14 +207,14 @@ export default function DeckPage({ params }: { params: Promise<{ id: string }> }
                     transform: showAnswer ? 'rotateY(180deg)' : 'rotateY(0deg)'
                   }}
                 >
-                  <h3 className="text-xl font-semibold text-gray-800 mb-4">
-                    {showAnswer ? 'Answer:' : 'Question:'}
+                  <h3 className="text-lg font-bold text-gray-800 mb-4 uppercase">
+                    {showAnswer ? 'ANSWER:' : 'QUESTION:'}
                   </h3>
-                  <p className="text-lg text-gray-700">
+                  <p className="text-sm text-gray-700">
                     {showAnswer ? flashcards[currentCard]?.answer : flashcards[currentCard]?.question}
                   </p>
                   {!showAnswer && (
-                    <p className="text-sm text-gray-500 mt-4">Click to reveal answer</p>
+                    <p className="text-xs text-gray-500 mt-4 uppercase">CLICK TO REVEAL ANSWER</p>
                   )}
                 </div>
               </div>
@@ -225,17 +225,17 @@ export default function DeckPage({ params }: { params: Promise<{ id: string }> }
             <div className="flex justify-center space-x-4 mt-6">
               <button 
                 onClick={() => handleSwipe('right')}
-                className="px-6 py-3 bg-gradient-to-r from-orange-400 to-red-400 text-white rounded-lg hover:from-orange-500 hover:to-red-500 transition-all duration-200 flex items-center space-x-2"
+                className="px-6 py-3 bg-gradient-to-r from-orange-400 to-red-400 text-white pixel-button flex items-center space-x-2 text-sm"
               >
-                <ChevronLeft size={18} />
-                <span>Need Review</span>
+                <ChevronLeft size={16} />
+                <span>NEED REVIEW</span>
               </button>
               <button 
                 onClick={() => handleSwipe('left')}
-                className="px-6 py-3 bg-gradient-to-r from-green-400 to-green-500 text-white rounded-lg hover:from-green-500 hover:to-green-600 transition-all duration-200 flex items-center space-x-2"
+                className="px-6 py-3 bg-gradient-to-r from-green-400 to-green-500 text-white pixel-button flex items-center space-x-2 text-sm"
               >
-                <span>Got It!</span>
-                <ChevronRight size={18} />
+                <span>GOT IT!</span>
+                <ChevronRight size={16} />
               </button>
             </div>
           )}
