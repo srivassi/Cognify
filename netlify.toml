@@ -1,0 +1,50 @@
+# Netlify configuration for full stack deployment
+
+[build]
+  # Build from the frontend directory since that's what Netlify will serve
+  base = "frontend"
+  command = "npm run build"
+  publish = "frontend/.next"
+
+# Environment variables for the build
+[build.environment]
+  NEXT_PUBLIC_SUPABASE_URL = "${NEXT_PUBLIC_SUPABASE_URL}"
+  NEXT_PUBLIC_SUPABASE_ANON_KEY = "${NEXT_PUBLIC_SUPABASE_ANON_KEY}"
+
+# Redirect rules for API and single page app
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+
+# Rewrite all routes to index.html for client-side routing (SPA)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+  condition = "!req.headers.X-Is-Preview-Deploy || !req.headers.X-Is-Preview-Deploy"
+
+# Headers for security and CORS
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "SAMEORIGIN"
+    X-Content-Type-Options = "nosniff"
+    X-XSS-Protection = "1; mode=block"
+
+# Cache headers for static assets
+[[headers]]
+  for = "/static/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/_next/static/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Functions for serverless backend
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+  external_node_modules = ["langchain", "langchain_google_genai", "google-generativeai"]
