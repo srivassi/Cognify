@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, Copy, Users } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
+import { API_URL } from '@/lib/config';
 
 interface Player {
   id: string;
@@ -262,7 +263,7 @@ export default function Connect4Page({ params }: Connect4PageProps) {
           setTimeout(async () => {
             console.log('Starting API call for scoring...');
             try {
-              const response = await fetch('http://localhost:8000/score-answers', {
+              const response = await fetch(`${API_URL}/score-answers`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

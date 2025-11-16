@@ -18,7 +18,11 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"], # frontend origin(s)
+    allow_origins=[
+        "http://localhost:3000",
+        "https://*.vercel.app",
+        "https://cognify-frontend.vercel.app"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"]
