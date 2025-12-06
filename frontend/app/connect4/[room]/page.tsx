@@ -4,7 +4,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, Copy, Users } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
-import { API_URL } from '@/lib/config';
 
 interface Player {
   id: string;
@@ -98,13 +97,13 @@ export default function Connect4Page({ params }: Connect4PageProps) {
     loadPlayers();
 
     const playersSubscription = supabase
-      .channel(`room-${room.id}-players`);
+      .channel(`room-${room?.id}-players`);
     
     channelRef.current = playersSubscription;
     
     playersSubscription
       .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'connect4_players', filter: `room_id=eq.${room.id}` },
+        { event: '*', schema: 'public', table: 'connect4_players', filter: `room_id=eq.${room?.id}` },
         (payload) => {
           if (payload.eventType === 'DELETE') {
             loadPlayers();
@@ -241,7 +240,7 @@ export default function Connect4Page({ params }: Connect4PageProps) {
         if (isHost && questionData && !showScoring) {
           setTimeout(async () => {
             try {
-              const response = await fetch(`${API_URL}/score-answers`, {
+              const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/score-answers`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -353,9 +352,9 @@ export default function Connect4Page({ params }: Connect4PageProps) {
       .subscribe();
 
     const roomSubscription = supabase
-      .channel(`room-${room.id}-status`)
+      .channel(`room-${room?.id}-status`)
       .on('postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'connect4_rooms', filter: `id=eq.${room.id}` },
+        { event: 'UPDATE', schema: 'public', table: 'connect4_rooms', filter: `id=eq.${room?.id}` },
         (payload) => {
           if (payload.new.status === 'playing') {
             setGameStarted(true);
@@ -576,11 +575,11 @@ export default function Connect4Page({ params }: Connect4PageProps) {
       await supabase
         .from('connect4_players')
         .delete()
-        .eq('room_id', room.id)
+        .eq('room_id', room?.id)
         .eq('user_id', session.user.id);
 
       await supabase
-        .channel(`room-${room.id}-players`)
+        .channel(`room-${room?.id}-players`)
         .send({
           type: 'broadcast',
           event: 'player_left',
@@ -653,7 +652,7 @@ export default function Connect4Page({ params }: Connect4PageProps) {
       const { data: playersData } = await supabase
         .from('connect4_players')
         .select('*')
-        .eq('room_id', room.id)
+        .eq('room_id', room?.id)
         .order('player_number');
 
       if (playersData) {
@@ -708,7 +707,7 @@ export default function Connect4Page({ params }: Connect4PageProps) {
           setCurrentQuestion(shuffled[0]);
           
           await supabase
-            .channel(`room-${room.id}-players`)
+            .channel(`room-${room?.id}-players`)
             .send({
               type: 'broadcast',
               event: 'new_question',
@@ -737,7 +736,7 @@ export default function Connect4Page({ params }: Connect4PageProps) {
         const newTime = prev - 1;
         
         supabase
-          .channel(`room-${room.id}-players`)
+          .channel(`room-${room?.id}-players`)
           .send({
             type: 'broadcast',
             event: 'timer_sync',
@@ -771,7 +770,7 @@ export default function Connect4Page({ params }: Connect4PageProps) {
     }
     
     await supabase
-      .channel(`room-${room.id}-players`)
+      .channel(`room-${room?.id}-players`)
       .send({
         type: 'broadcast',
         event: 'answer_update',
@@ -930,6 +929,7 @@ export default function Connect4Page({ params }: Connect4PageProps) {
   };
   
   const handleColumnClick = async (col: number) => {
+    console.log('Column clicked:', col, {
       waitingForCoinDrop,
       roundWinner,
       userPlayerNumber,
@@ -1062,7 +1062,7 @@ export default function Connect4Page({ params }: Connect4PageProps) {
       const { error: roomError } = await supabase
         .from('connect4_rooms')
         .update({ status: 'playing' })
-        .eq('id', room.id);
+        .eq('id', room?.id);
 
       if (roomError) return;
       
@@ -1077,8 +1077,6 @@ export default function Connect4Page({ params }: Connect4PageProps) {
       // Handle error silently
     }
   };
-
-
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-purple-100">
@@ -1458,45 +1456,46 @@ export default function Connect4Page({ params }: Connect4PageProps) {
                       ))}
                     </div>
 
-
-                <div className="text-center">
-                  {isHost ? (
-                    <button 
-                      onClick={startGame}
-                      disabled={players.length < 2}
-                      className="px-8 py-3 bg-gradient-to-r from-pink-500 to-pink-600 text-white rounded-lg hover:from-pink-600 hover:to-pink-700 transition-all duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Start Game
-                    </button>
-                  ) : hasJoined ? (
-                    <div className="text-gray-500">
-                      Waiting for host to start the game...
+                    <div className="text-center">
+                      {isHost ? (
+                        <button 
+                          onClick={startGame}
+                          disabled={players.length < 2}
+                          className="px-8 py-3 bg-gradient-to-r from-pink-500 to-pink-600 text-white rounded-lg hover:from-pink-600 hover:to-pink-700 transition-all duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Start Game
+                        </button>
+                      ) : hasJoined ? (
+                        <div className="text-gray-500">
+                          Waiting for host to start the game...
+                        </div>
+                      ) : (
+                        <button 
+                          onClick={async () => {
+                            if (room) {
+                              const { data: { session } } = await supabase.auth.getSession();
+                              if (session) {
+                                await joinRoom(room.id, session.user.id);
+                                // Force reload players on both screens
+                                await loadPlayers();
+                              }
+                            }
+                          }}
+                          className="px-8 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200 font-semibold"
+                        >
+                          Join Game
+                        </button>
+                      )}
+                      <p className="text-xs text-gray-500 mt-2">
+                        {players.length >= 2 ? 'Ready to start!' : `Need ${2 - players.length} more player(s)`}
+                      </p>
                     </div>
-                  ) : (
-                    <button 
-                      onClick={async () => {
-                        if (room) {
-                          const { data: { session } } = await supabase.auth.getSession();
-                          if (session) {
-                            await joinRoom(room.id, session.user.id);
-                            // Force reload players on both screens
-                            await loadPlayers();
-                          }
-                        }
-                      }}
-                      className="px-8 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200 font-semibold"
-                    >
-                      Join Game
-                    </button>
-                  )}
-                  <p className="text-xs text-gray-500 mt-2">
-                    {players.length >= 2 ? 'Ready to start!' : `Need ${2 - players.length} more player(s)`}
-                  </p>
-                </div>
-              </>
-            )}
+                  </>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
+        )}
         <div className="hanging-sign">
           <h3 className="text-lg font-bold text-center text-gray-700 mb-4 uppercase tracking-wide">How to Play</h3>
           <ul className="text-sm text-gray-600 space-y-2 font-medium text-center">
@@ -1506,8 +1505,6 @@ export default function Connect4Page({ params }: Connect4PageProps) {
             <li>Wrong answers give the turn to the next player</li>
           </ul>
         </div>
-      </div>
-        )}
       </div>
     </div>
   );
